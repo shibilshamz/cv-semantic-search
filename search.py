@@ -28,7 +28,15 @@ SYSTEM = (
     "Cite the [candidate_id] behind every claim. If an excerpt does not support "
     "a requirement, say so explicitly. Never infer experience that is not "
     "written down. If none of the candidates is a good fit, say that plainly "
-    "rather than ranking weak matches as though they were strong."
+    "rather than ranking weak matches as though they were strong.\n\n"
+    # Added after an early run inferred a candidate's location from their name
+    # ("Name and context suggest Gulf region"). In a hiring tool that is both a
+    # grounding failure and a discrimination risk, so it is called out by name
+    # rather than left to the general instruction above.
+    "Never infer nationality, location, ethnicity, gender, age or religion from "
+    "a candidate's name. If the brief asks about location, residency or work "
+    "authorisation and the excerpts do not state it, answer \"not stated in the "
+    "CV\" and treat the requirement as unmet."
 )
 
 
@@ -72,6 +80,38 @@ def retrieve(brief: str, k: int = 5) -> List[Dict]:
     return sorted(best.values(), key=lambda r: r["distance"])[:k]
 
 
+HEADER_CHARS = 400
+
+
+def _header_for(candidate_id: str, best_text: str) -> str:
+    """The candidate's contact block -- chunk 0 -- if it is not already the match.
+
+    Retrieval returns the single best-matching section, which for a technical
+    brief is usually the summary or a role. Location, nationality and visa status
+    live in the header, so without this the model is asked "is this person in the
+    Gulf?" while holding text that never says. It answered that once by guessing
+    from the candidate's name, which is not an acceptable failure mode in a
+    hiring tool. One extra lookup per candidate closes the gap at the source; the
+    system prompt closes it again as a backstop.
+    """
+    try:
+        got = get_collection().get(ids=[f"{candidate_id}:0"], include=["documents"])
+        docs = got.get("documents") or []
+    except Exception:
+        return ""
+    if not docs or not docs[0] or docs[0] == best_text:
+        return ""
+    return docs[0][:HEADER_CHARS]
+
+
+def _context_for(r: Dict) -> str:
+    block = f"[{r['candidate_id']}] {r['name']}"
+    header = _header_for(r["candidate_id"], r["text"])
+    if header:
+        block += f"\n-- CV header --\n{header}"
+    return f"{block}\n-- {r['section']} --\n{r['text']}"
+
+
 def rank(brief: str, results: List[Dict]) -> str:
     """Ask Claude to rank the retrieved candidates. Requires ANTHROPIC_API_KEY."""
     if not results:
@@ -82,10 +122,7 @@ def rank(brief: str, results: List[Dict]) -> str:
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise RuntimeError("ANTHROPIC_API_KEY is not set; retrieval works, ranking does not")
 
-    context = "\n\n".join(
-        f"[{r['candidate_id']}] {r['name']} - {r['section']}\n{r['text']}"
-        for r in results
-    )
+    context = "\n\n".join(_context_for(r) for r in results)
     msg = anthropic.Anthropic().messages.create(
         model=CLAUDE_MODEL,
         max_tokens=2000,
