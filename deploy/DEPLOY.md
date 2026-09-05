@@ -35,10 +35,14 @@ cp .env.example .env
 chmod 600 .env
 vi .env                 # ANTHROPIC_API_KEY, and confirm the ports
 
-# This box has docker-compose v1 (Ubuntu's docker.io ships no v2 plugin),
-# hence the hyphen. `docker compose up -d` works anywhere with v2.
-docker-compose up -d    # Chroma on 127.0.0.1:8001
-docker ps | grep chroma
+# On this VPS, use the script: Ubuntu's docker.io ships no Compose v2 plugin,
+# and the installed v1 fails against this Docker version with
+# "Not supported URL scheme http+docker". The script runs the same container
+# with the same flags, and waits for the heartbeat.
+bash deploy/chroma-run.sh
+
+# Anywhere with Compose v2, this is equivalent:
+#   docker compose up -d
 ```
 
 Then warm the model cache once, before Supervisor has any reason to care how
