@@ -17,6 +17,12 @@
 #    bridge or anywhere else. Worth remembering that a Docker published port
 #    bypasses ufw entirely -- binding 0.0.0.0 here would put the whole candidate
 #    index on the public internet regardless of the firewall.
+# The `version` key is obsolete under Compose v2 and produces a warning there.
+# It is kept because the target VPS has only docker-compose v1 (Ubuntu ships
+# docker.io without the v2 plugin), and v1 reads a file with no version key as
+# the legacy format -- in which `services` is parsed as the name of a service.
+version: "3.8"
+
 services:
   chroma:
     image: chromadb/chroma:1.5.9

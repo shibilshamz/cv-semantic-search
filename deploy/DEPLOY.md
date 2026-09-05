@@ -35,7 +35,9 @@ cp .env.example .env
 chmod 600 .env
 vi .env                 # ANTHROPIC_API_KEY, and confirm the ports
 
-docker compose up -d    # Chroma on 127.0.0.1:8001
+# This box has docker-compose v1 (Ubuntu's docker.io ships no v2 plugin),
+# hence the hyphen. `docker compose up -d` works anywhere with v2.
+docker-compose up -d    # Chroma on 127.0.0.1:8001
 docker ps | grep chroma
 ```
 
