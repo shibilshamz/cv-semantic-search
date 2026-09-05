@@ -7,13 +7,23 @@ not 127.0.0.1:
 
   127.0.0.1  invisible to the n8n container, which is the one client that needs
              to reach POST /index
-  0.0.0.0    reachable from the internet unless ufw says otherwise, which makes
-             the firewall the only thing standing between a candidate database
-             and the public. That is how job-runner on 5679 is set up, and it is
-             the part of that setup worth not copying.
-  172.17.0.1 reachable from containers on the default bridge, and from nowhere
-             else, by virtue of the address itself rather than a rule that
-             someone might change
+  0.0.0.0    listens on every interface including the public one, so the
+             firewall becomes the only thing standing between a candidate
+             database and the internet. That is how job-runner on 5679 is set
+             up, and it is the part of that setup worth not copying.
+  172.17.0.1 listens only on the bridge. Not bound to the public interface at
+             all, so an accidental firewall change cannot expose it.
+
+Reaching it from a container additionally needs a firewall rule, because
+container-to-host traffic arrives through the host INPUT chain and ufw's default
+policy there is DROP. The rule is scoped to the interface, the bridge subnet and
+this one port:
+
+    ufw allow in on docker0 from 172.17.0.0/16 to 172.17.0.1 port 5680 proto tcp
+
+That grants exactly what n8n needs and nothing else -- unlike `ufw allow 5680`,
+which would open the port to the world. Verified from off-box, since `ufw status`
+is not evidence of anything.
 
 Set API_HOST=127.0.0.1 in .env for local development.
 """

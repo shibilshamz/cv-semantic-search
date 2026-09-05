@@ -157,12 +157,25 @@ Runs on the same Ubuntu VPS as the pipeline that feeds it.
 | Service | Port | Bound to | Why |
 |---|---|---|---|
 | Chroma | 8001 | `127.0.0.1` | 8000 is taken by another service on this box. Only the API talks to it. |
-| cv-search API | 5680 | `172.17.0.1` | The docker0 bridge address — reachable from the n8n container, unreachable from the internet, without depending on a firewall rule |
+| cv-search API | 5680 | `172.17.0.1` | The docker0 bridge address — listens on the bridge only, never on the public interface |
 
 Binding the API to the bridge rather than `0.0.0.0` is deliberate. A service on
-`0.0.0.0` is public unless `ufw` says otherwise, which makes the firewall the
-only thing between a candidate database and the open internet. The bridge address
-is unreachable from outside by virtue of what it is.
+`0.0.0.0` listens on every interface including the public one, which leaves the
+firewall as the only thing between a candidate database and the open internet.
+Binding the bridge address means an accidental firewall change cannot expose it,
+because it was never listening there.
+
+Reaching it *from* a container needs one firewall rule on top, because
+container-to-host traffic arrives through the host `INPUT` chain where ufw's
+default policy is `DROP`:
+
+```bash
+ufw allow in on docker0 from 172.17.0.0/16 to 172.17.0.1 port 5680 proto tcp
+```
+
+Scoped to the interface, the bridge subnet and the single port — as opposed to
+`ufw allow 5680`, which would open it to the internet. Confirm from another
+machine rather than trusting `ufw status`.
 
 Secrets live in a `chmod 600` `.env` read through `python-dotenv`, not inline in
 the Supervisor config.

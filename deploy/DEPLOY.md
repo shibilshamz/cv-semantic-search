@@ -67,10 +67,27 @@ but passed locally, the difference is the environment, not the code -- check tha
 
 ```bash
 cp deploy/cv-search.conf /etc/supervisor/conf.d/
-supervisorctl reread && supervisorctl update
+supervisorctl reread && supervisorctl update      # BOTH; reread alone does nothing
 supervisorctl status cv-search
 curl -s http://172.17.0.1:5680/health
 ```
+
+## Let n8n reach it
+
+The API listens on the bridge, but ufw still drops container-to-host traffic:
+it arrives through the host `INPUT` chain, whose default policy is `DROP`. Until
+this rule exists, n8n cannot call `/index` — and neither can it reach any other
+host service, which is worth knowing if you have ever assumed otherwise about
+`job-runner` on 5679.
+
+```bash
+ufw allow in on docker0 from 172.17.0.0/16 to 172.17.0.1 port 5680 proto tcp   comment "n8n container -> cv-search API"
+
+docker exec n8n node -e 'fetch("http://172.17.0.1:5680/health").then(r=>r.text()).then(console.log)'
+```
+
+Scoped to the interface, the bridge subnet and one port. Do **not** substitute
+`ufw allow 5680` — that opens it to the internet.
 
 ## Confirm you did not break anything else
 
