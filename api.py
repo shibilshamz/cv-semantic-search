@@ -28,14 +28,17 @@ is not evidence of anything.
 Set API_HOST=127.0.0.1 in .env for local development.
 """
 
+import logging
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 import store
 from indexer import index_cv
 from search import MIN_SCORE, retrieve, search
+
+logger = logging.getLogger("cv-search")
 
 app = FastAPI(
     title="CV Semantic Search",
@@ -51,10 +54,25 @@ class Brief(BaseModel):
 
 
 class Candidate(BaseModel):
-    candidate_id: str = Field(..., description="the candidate's email; the dedup key")
-    name: str
+    # An email, because that is the dedup key the n8n pipeline already uses.
+    # Validated rather than trusted: an extraction that finds no email would
+    # otherwise index the candidate under the id "", and every subsequent
+    # email-less CV would overwrite the last one under that same key. The
+    # pipeline already skips these -- a CV with no email is treated as a
+    # duplicate and never reaches the sheet -- so rejecting them here keeps the
+    # two systems agreeing on who counts as a person.
+    candidate_id: str = Field(..., min_length=3, description="the candidate's email")
+    name: str = ""
     text: str = Field(..., min_length=1, description="extracted CV text")
     source: str = ""
+
+    @field_validator("candidate_id")
+    @classmethod
+    def _looks_like_an_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if "@" not in v or v.startswith("@") or v.endswith("@"):
+            raise ValueError("candidate_id must be an email address")
+        return v
 
 
 @app.get("/health")
@@ -76,13 +94,37 @@ def index(candidate: Candidate):
     twice updates their entry rather than duplicating it.
     """
     try:
-        chunks = index_cv(candidate.candidate_id.strip().lower(), candidate.name,
+        chunks = index_cv(candidate.candidate_id, candidate.name,
                           candidate.text, candidate.source)
     except Exception as exc:
         raise HTTPException(500, f"indexing failed: {type(exc).__name__}: {exc}")
     if chunks == 0:
         raise HTTPException(422, "no indexable text in that CV")
-    return {"candidate_id": candidate.candidate_id.strip().lower(), "chunks": chunks}
+
+    # Mismatch detector for the caller's item pairing.
+    #
+    # The n8n workflow builds this request from two different nodes: the email
+    # comes from the extraction step, the text from the PDF step. If those get
+    # mispaired -- the failure the pipeline's own notes document, where an
+    # expression silently resolves to item 0 for every item in a batch -- then
+    # every CV in the batch arrives carrying the first candidate's text under
+    # its own email. Nothing errors. The index just quietly fills with wrong
+    # answers.
+    #
+    # A CV almost always contains its owner's email address, so a posted email
+    # that does not appear in its posted text is a strong signal of exactly that
+    # bug. Reported rather than rejected, because a minority of CVs legitimately
+    # carry the address only in a header image the extractor cannot read.
+    paired = candidate.candidate_id in candidate.text.lower()
+    if not paired:
+        logger.warning(
+            "possible item mispairing: %s not found in the text posted for it "
+            "(source=%r). If a whole batch reports this, check the caller's "
+            "item pairing before trusting the index.",
+            candidate.candidate_id, candidate.source or "unknown")
+
+    return {"candidate_id": candidate.candidate_id, "chunks": chunks,
+            "email_found_in_text": paired}
 
 
 @app.post("/search")
