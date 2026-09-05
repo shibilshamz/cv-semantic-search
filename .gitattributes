@@ -1,0 +1,7 @@
+# Shell scripts and configs are consumed on Linux. A CRLF shebang fails there
+# with a "bad interpreter" error that reads like the file is missing.
+*.sh text eol=lf
+*.conf text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
