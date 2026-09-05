@@ -1,0 +1,23 @@
+Farah Mbeki
+farah.mbeki@example.com | +971 52 640 5045 | Doha, Qatar
+Sri Lankan national | Residence visa | 60 days notice
+
+Profile
+iOS Engineer with 7 years of experience. Shipped the React Native rewrite of the customer app to 2.4m installs.
+
+Employment History
+
+iOS Engineer, Fetchr
+Jun 2019 - Present
+Shipped the React Native rewrite of the customer app to 2.4m installs.
+Reduced crash-free session rate regressions by adding release gating.
+
+Mobile Developer, Kitopi
+Apr 2016 - 2019
+Reduced crash-free session rate regressions by adding release gating.
+
+Core Competencies
+React Native, Swift, Kotlin, TypeScript, Firebase, Fastlane
+
+Academic Qualifications
+BEng Software Engineering, 2015

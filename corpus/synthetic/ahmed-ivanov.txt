@@ -1,0 +1,23 @@
+Ahmed Ivanov
+ahmed.ivanov@example.com | +971 50 805 4068 | Kuwait City, Kuwait
+Bangladeshi national | Residence visa | 30 days notice
+
+Professional Summary
+Frontend Developer with 4 years of experience. Owned the component library used across four product teams.
+
+Work Experience
+
+Frontend Developer, Tabby
+Mar 2022 - Present
+Owned the component library used across four product teams.
+Rebuilt the checkout funnel in React, lifting completion by 12%.
+
+UI Engineer, Property Finder
+Nov 2020 - 2022
+Rebuilt the checkout funnel in React, lifting completion by 12%.
+
+Technical Skills
+JavaScript, TypeScript, React, Next.js, CSS, Webpack, Jest
+
+Education
+BSc Computer Science, 2019

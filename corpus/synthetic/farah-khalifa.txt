@@ -1,0 +1,23 @@
+Farah Khalifa
+farah.khalifa@example.com | +971 56 787 8667 | Muscat, Oman
+Kenyan national | Residence visa | 60 days notice
+
+Profile
+Frontend Developer with 4 years of experience. Owned the component library used across four product teams.
+
+Employment History
+
+Frontend Developer, Noon
+Jan 2022 - Present
+Owned the component library used across four product teams.
+Cut first contentful paint from 4.1s to 1.3s on mid-range Android.
+
+Senior Frontend Engineer, Talabat
+Apr 2020 - 2022
+Cut first contentful paint from 4.1s to 1.3s on mid-range Android.
+
+Core Competencies
+JavaScript, TypeScript, React, Next.js, CSS, Webpack, Jest
+
+Academic Qualifications
+BSc Computer Science, 2019

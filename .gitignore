@@ -1,0 +1,28 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Real candidate data — never commit. Synthetic corpus IS committed, on purpose.
+corpus/real/
+*.pdf
+*.docx
+
+# Vector store contents (rebuildable from the corpus)
+chroma-data/
+.chroma-dev/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Model cache (ONNX MiniLM, ~90 MB, downloaded on first run)
+.model-cache/
+
+# OS
+.DS_Store
+Thumbs.db

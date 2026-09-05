@@ -1,0 +1,23 @@
+Nadia Mansour
+nadia.mansour@example.com | +971 54 923 3124 | Sharjah, UAE
+Sri Lankan national | Residence visa | 1 month notice
+
+Profile
+Frontend Developer with 7 years of experience. Rebuilt the checkout funnel in React, lifting completion by 12%.
+
+Employment History
+
+Frontend Developer, Tabby
+Mar 2020 - Present
+Rebuilt the checkout funnel in React, lifting completion by 12%.
+Cut first contentful paint from 4.1s to 1.3s on mid-range Android.
+
+UI Engineer, Bayut
+Feb 2016 - 2020
+Cut first contentful paint from 4.1s to 1.3s on mid-range Android.
+
+Core Competencies
+JavaScript, TypeScript, React, Next.js, CSS, Webpack, Jest
+
+Academic Qualifications
+BSc Computer Science, 2015

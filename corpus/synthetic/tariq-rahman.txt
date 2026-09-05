@@ -1,0 +1,23 @@
+Tariq Rahman
+tariq.rahman@example.com | +971 51 822 6910 | Abu Dhabi, UAE
+Portuguese national | Residence visa | 30 days notice
+
+Professional Summary
+SDET with 5 years of experience. Introduced contract testing between the two highest-churn services.
+
+Work Experience
+
+SDET, Etisalat
+Sep 2022 - Present
+Introduced contract testing between the two highest-churn services.
+Automated the regression suite, cutting release testing from 5 days to 6 hours.
+
+QA Engineer, Emaar
+Aug 2019 - 2022
+Automated the regression suite, cutting release testing from 5 days to 6 hours.
+
+Technical Skills
+Selenium, Playwright, Python, Postman, JMeter, CI/CD
+
+Education
+BSc Information Technology, 2018

@@ -1,0 +1,20 @@
+# Pinned to the same version as the server image in docker-compose.yml.
+# The full package (not chromadb-client) so a local PersistentClient works
+# without Docker -- see store.py.
+chromadb==1.5.9
+
+# Embeddings: MiniLM-L6-v2 through ONNX Runtime rather than torch.
+# Same model and the same 384 dimensions as sentence-transformers, at roughly a
+# tenth of the footprint. This box has 3.8 GB of RAM and already runs n8n,
+# trading-agent and job-runner; the default torch wheel also drags in ~2.5 GB of
+# CUDA packages for a machine with no GPU. See docs/chunking.md.
+onnxruntime==1.19.2  # or newer; 1.29 verified on Windows/py3.14
+tokenizers==0.20.1
+
+anthropic==0.39.0
+fastapi==0.115.4
+uvicorn==0.32.0
+pydantic==2.9.2
+python-dotenv==1.0.1
+PyYAML==6.0.2
+httpx==0.27.2

@@ -1,0 +1,67 @@
+# Retrieval eval set.
+#
+# Written before any tuning, which is the only way the numbers mean anything. If
+# you adjust the chunker, the model or k, re-run eval/run_eval.py and compare --
+# do not adjust these briefs to match the output.
+#
+# `expect` lists candidate_ids that MUST appear in the top k. An empty `expect`
+# marks a brief that should have no good answer at all.
+
+threshold: 0.35   # see run_eval.py -- the score below which a match is "weak"
+k: 5
+
+briefs:
+  # The case that justifies the whole project. Neither "payments" nor "API"
+  # appears anywhere in the corpus; Ahmed's CV says "settlement reconciliation",
+  # "card movements" and "issuer statements". Keyword search returns nothing
+  # here. If this brief fails, the embeddings are not earning their keep.
+  - id: payments-no-overlap
+    brief: >-
+      backend engineer comfortable with payments APIs, based in the Gulf
+    expect: [ahmed.rashid@example.com]
+    note: zero vocabulary overlap with the target CV
+
+  # Maria's CV has no headings at all -- one unstructured block. It exercises
+  # the chunker's fallback path and must still be retrievable.
+  - id: warehouse-unstructured
+    brief: >-
+      supervisor to run our warehouse floor and bring down picking errors
+    expect: [maria.santos@example.com]
+    note: target CV has no section headings
+
+  # Elena appears twice in the corpus, submitted by two agencies with different
+  # layouts. She must come back once.
+  - id: property-duplicate
+    brief: >-
+      Russian-speaking property consultant selling off-plan residential in Dubai
+    expect: [elena.petrova@example.com]
+    note: target appears in two source files under one email
+
+  - id: data-streaming
+    brief: >-
+      data engineer who has built and operated streaming pipelines at volume
+    expect: [rajesh.menon@example.com]
+
+  - id: platform-k8s
+    brief: >-
+      platform engineer to own our Kubernetes clusters and infrastructure as code
+    expect: [fatima.zahra@example.com]
+
+  - id: icu-nurse
+    brief: >-
+      critical care nurse with ventilator experience, DHA licensed
+    expect: [grace.okonkwo@example.com]
+
+  - id: multilingual-infra
+    brief: >-
+      infrastructure engineer who can work with French and Arabic speaking teams
+    expect: [fatima.zahra@example.com]
+    note: the match depends on the Languages section, not the technical one
+
+  # Nobody in the corpus is remotely close. The system must say so rather than
+  # ranking five irrelevant people as though they were candidates.
+  - id: no-match-negative
+    brief: >-
+      veterinary surgeon, equine specialist
+    expect: []
+    note: negative control -- expect a weak top score, not five forced names

@@ -1,0 +1,33 @@
+Ahmed Al-Rashid
+ahmed.rashid@example.com | +971 50 411 8823 | Dubai, UAE
+Emirati national | No visa sponsorship required
+
+Professional Summary
+Nine years building high-throughput transaction processing for regional banks.
+Comfortable owning a service end to end, from schema design through to the
+on-call rotation that wakes you at 3am when it misbehaves.
+
+Work Experience
+
+Senior Software Engineer, Emirates NBD
+Feb 2021 - Present
+Designed and built the settlement reconciliation service that matches inbound
+card movements against issuer statements overnight. Reduced manual investigation
+from four hours a day to under twenty minutes.
+Introduced idempotency keys across the money movement path after a duplicate
+posting incident; the class of bug has not recurred in three years.
+Ran the migration of the nightly clearing batch from a monolith cron job onto
+Kafka, cutting the settlement window from six hours to ninety minutes.
+
+Software Engineer, Network International
+Aug 2016 - Jan 2021
+Maintained the card authorisation gateway, roughly 900 requests per second at
+peak, with a 99.98% availability target.
+Wrote the retry and reversal logic for declined transactions, including the
+timeout handling that decides whether a customer gets charged twice.
+
+Technical Skills
+Python, Go, PostgreSQL, Kafka, Redis, Kubernetes, Terraform, gRPC
+
+Education
+BSc Computer Science, American University of Sharjah, 2016

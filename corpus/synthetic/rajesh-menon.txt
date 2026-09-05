@@ -1,0 +1,29 @@
+Rajesh Menon
+rajesh.menon@example.com | +971 56 771 2204 | Abu Dhabi, UAE
+Indian national | Residence visa | 2 months notice
+
+Summary
+Data engineer, six years. Builds and operates streaming and batch pipelines.
+Most recently responsible for the ingestion layer feeding a group-wide analytics
+warehouse.
+
+Professional Experience
+
+Senior Data Engineer, ADNOC Distribution
+Apr 2022 - Present
+Built the real-time ingestion pipeline carrying fuel station telemetry into
+Snowflake, roughly 40 million events a day, on Kafka and Spark Structured
+Streaming.
+Cut warehouse compute spend 38% by rewriting the heaviest transformations in
+dbt and moving them off hourly full refreshes onto incremental models.
+
+Data Engineer, Majid Al Futtaim
+Jul 2019 - Mar 2022
+Owned the nightly batch loading point-of-sale data from 340 retail sites.
+Introduced data quality checks that caught silent schema drift from upstream.
+
+Technical Skills
+Python, SQL, Spark, Kafka, Airflow, dbt, Snowflake, AWS (S3, Glue, EMR)
+
+Education
+BTech Information Technology, NIT Calicut, 2019

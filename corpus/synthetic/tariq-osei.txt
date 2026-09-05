@@ -1,0 +1,23 @@
+Tariq Osei
+tariq.osei@example.com | +971 55 384 8418 | Dubai, UAE
+Egyptian national | Residence visa | Immediate notice
+
+Career Summary
+Security Analyst with 6 years of experience. Tier 2 SOC analyst on a 24/7 rotation covering 40 client environments.
+
+Professional Experience
+
+Security Analyst, Injazat
+Mar 2019 - Present
+Tier 2 SOC analyst on a 24/7 rotation covering 40 client environments.
+Built detection rules that cut false positive volume by roughly half.
+
+Cybersecurity Engineer, spiderSilk
+Feb 2017 - 2019
+Built detection rules that cut false positive volume by roughly half.
+
+Key Skills
+Splunk, SIEM, incident response, MITRE ATT&CK, Python, Nessus
+
+Qualifications
+BSc Cybersecurity, 2016

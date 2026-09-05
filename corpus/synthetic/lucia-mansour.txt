@@ -1,0 +1,23 @@
+Lucia Mansour
+lucia.mansour@example.com | +971 51 196 5255 | Doha, Qatar
+Kenyan national | Residence visa | 1 month notice
+
+Career Summary
+Test Automation Engineer with 5 years of experience. Introduced contract testing between the two highest-churn services.
+
+Professional Experience
+
+Test Automation Engineer, Aramex
+Sep 2021 - Present
+Introduced contract testing between the two highest-churn services.
+Automated the regression suite, cutting release testing from 5 days to 6 hours.
+
+SDET, Etisalat
+Apr 2018 - 2021
+Automated the regression suite, cutting release testing from 5 days to 6 hours.
+
+Key Skills
+Selenium, Playwright, Python, Postman, JMeter, CI/CD
+
+Qualifications
+BSc Information Technology, 2017

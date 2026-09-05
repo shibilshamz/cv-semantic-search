@@ -1,0 +1,31 @@
+Fatima Zahra Bennani
+fatima.zahra@example.com | +971 54 620 3378 | Dubai, UAE
+Moroccan national | Residence visa | Immediately available
+
+Career Objective
+Platform engineer looking for infrastructure ownership at a product company.
+
+Work Experience
+
+DevOps Engineer, Careem
+Sep 2021 - Present
+Run the Kubernetes platform, 14 clusters across three AWS regions, serving
+around 200 microservices.
+Replaced hand-maintained CloudFormation with Terraform modules; environment
+provisioning went from a two-day ticket to a fifteen-minute pipeline run.
+Cut the mean time to restore on the checkout path from 47 minutes to 9 by
+rebuilding the alerting around user-visible symptoms rather than host metrics.
+
+Systems Engineer, Injazat
+Jan 2018 - Aug 2021
+Managed on-premise VMware estate and the migration of 60 workloads to Azure.
+
+Technical Skills
+Kubernetes, Terraform, AWS, Docker, ArgoCD, Prometheus, Grafana, Python, Bash
+
+Certifications
+Certified Kubernetes Administrator (CKA), 2022
+AWS Solutions Architect Associate, 2021
+
+Languages
+Arabic (native), French (fluent), English (fluent)

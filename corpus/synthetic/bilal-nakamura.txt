@@ -1,0 +1,23 @@
+Bilal Nakamura
+bilal.nakamura@example.com | +971 51 450 1249 | Kuwait City, Kuwait
+Kenyan national | Residence visa | 60 days notice
+
+Career Summary
+Security Analyst with 4 years of experience. Tier 2 SOC analyst on a 24/7 rotation covering 40 client environments.
+
+Professional Experience
+
+Security Analyst, Injazat
+Sep 2024 - Present
+Tier 2 SOC analyst on a 24/7 rotation covering 40 client environments.
+Built detection rules that cut false positive volume by roughly half.
+
+Cybersecurity Engineer, spiderSilk
+Nov 2022 - 2024
+Built detection rules that cut false positive volume by roughly half.
+
+Key Skills
+Splunk, SIEM, incident response, MITRE ATT&CK, Python, Nessus
+
+Qualifications
+BSc Cybersecurity, 2021

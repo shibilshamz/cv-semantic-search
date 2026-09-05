@@ -1,0 +1,23 @@
+Priya Mansour
+priya.mansour@example.com | +971 52 476 9204 | Kuwait City, Kuwait
+Sri Lankan national | Residence visa | Immediate notice
+
+Career Summary
+Cybersecurity Engineer with 6 years of experience. Built detection rules that cut false positive volume by roughly half.
+
+Professional Experience
+
+Cybersecurity Engineer, spiderSilk
+Sep 2023 - Present
+Built detection rules that cut false positive volume by roughly half.
+Tier 2 SOC analyst on a 24/7 rotation covering 40 client environments.
+
+Security Analyst, Injazat
+Apr 2019 - 2023
+Tier 2 SOC analyst on a 24/7 rotation covering 40 client environments.
+
+Key Skills
+Splunk, SIEM, incident response, MITRE ATT&CK, Python, Nessus
+
+Qualifications
+BSc Cybersecurity, 2018

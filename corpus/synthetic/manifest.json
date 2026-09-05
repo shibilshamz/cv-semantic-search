@@ -1,0 +1,242 @@
+[
+  {
+    "file": "ahmed-al-rashid.txt",
+    "candidate_id": "ahmed.rashid@example.com",
+    "name": "Ahmed Al-Rashid",
+    "domain": "planted"
+  },
+  {
+    "file": "elena-petrova-agency-a.txt",
+    "candidate_id": "elena.petrova@example.com",
+    "name": "Elena Petrova",
+    "domain": "planted"
+  },
+  {
+    "file": "elena-petrova-agency-b.txt",
+    "candidate_id": "elena.petrova@example.com",
+    "name": "Elena Petrova",
+    "domain": "planted"
+  },
+  {
+    "file": "maria-santos.txt",
+    "candidate_id": "maria.santos@example.com",
+    "name": "Maria Santos",
+    "domain": "planted"
+  },
+  {
+    "file": "rajesh-menon.txt",
+    "candidate_id": "rajesh.menon@example.com",
+    "name": "Rajesh Menon",
+    "domain": "planted"
+  },
+  {
+    "file": "fatima-zahra-bennani.txt",
+    "candidate_id": "fatima.zahra@example.com",
+    "name": "Fatima Zahra Bennani",
+    "domain": "planted"
+  },
+  {
+    "file": "grace-okonkwo.txt",
+    "candidate_id": "grace.okonkwo@example.com",
+    "name": "Grace Okonkwo",
+    "domain": "planted"
+  },
+  {
+    "file": "rania-fernandes.txt",
+    "candidate_id": "rania.fernandes@example.com",
+    "name": "Rania Fernandes",
+    "domain": "teaching"
+  },
+  {
+    "file": "marco-nasser.txt",
+    "candidate_id": "marco.nasser@example.com",
+    "name": "Marco Nasser",
+    "domain": "teaching"
+  },
+  {
+    "file": "lucia-mansour.txt",
+    "candidate_id": "lucia.mansour@example.com",
+    "name": "Lucia Mansour",
+    "domain": "qa"
+  },
+  {
+    "file": "layla-farouk.txt",
+    "candidate_id": "layla.farouk@example.com",
+    "name": "Layla Farouk",
+    "domain": "teaching"
+  },
+  {
+    "file": "chen-lopes.txt",
+    "candidate_id": "chen.lopes@example.com",
+    "name": "Chen Lopes",
+    "domain": "marketing"
+  },
+  {
+    "file": "joseph-ivanov.txt",
+    "candidate_id": "joseph.ivanov@example.com",
+    "name": "Joseph Ivanov",
+    "domain": "teaching"
+  },
+  {
+    "file": "nadia-fernandes.txt",
+    "candidate_id": "nadia.fernandes@example.com",
+    "name": "Nadia Fernandes",
+    "domain": "teaching"
+  },
+  {
+    "file": "ivan-osei.txt",
+    "candidate_id": "ivan.osei@example.com",
+    "name": "Ivan Osei",
+    "domain": "teaching"
+  },
+  {
+    "file": "nour-nasser.txt",
+    "candidate_id": "nour.nasser@example.com",
+    "name": "Nour Nasser",
+    "domain": "marketing"
+  },
+  {
+    "file": "joseph-khalifa.txt",
+    "candidate_id": "joseph.khalifa@example.com",
+    "name": "Joseph Khalifa",
+    "domain": "accounting"
+  },
+  {
+    "file": "nadia-bakr.txt",
+    "candidate_id": "nadia.bakr@example.com",
+    "name": "Nadia Bakr",
+    "domain": "mobile"
+  },
+  {
+    "file": "ivan-farouk.txt",
+    "candidate_id": "ivan.farouk@example.com",
+    "name": "Ivan Farouk",
+    "domain": "marketing"
+  },
+  {
+    "file": "leila-rahman.txt",
+    "candidate_id": "leila.rahman@example.com",
+    "name": "Leila Rahman",
+    "domain": "marketing"
+  },
+  {
+    "file": "sunil-nasser.txt",
+    "candidate_id": "sunil.nasser@example.com",
+    "name": "Sunil Nasser",
+    "domain": "accounting"
+  },
+  {
+    "file": "bilal-nakamura.txt",
+    "candidate_id": "bilal.nakamura@example.com",
+    "name": "Bilal Nakamura",
+    "domain": "security"
+  },
+  {
+    "file": "tariq-rahman.txt",
+    "candidate_id": "tariq.rahman@example.com",
+    "name": "Tariq Rahman",
+    "domain": "qa"
+  },
+  {
+    "file": "vikram-mbeki.txt",
+    "candidate_id": "vikram.mbeki@example.com",
+    "name": "Vikram Mbeki",
+    "domain": "marketing"
+  },
+  {
+    "file": "ahmed-ivanov.txt",
+    "candidate_id": "ahmed.ivanov@example.com",
+    "name": "Ahmed Ivanov",
+    "domain": "frontend"
+  },
+  {
+    "file": "samir-nasser.txt",
+    "candidate_id": "samir.nasser@example.com",
+    "name": "Samir Nasser",
+    "domain": "mechanical"
+  },
+  {
+    "file": "leila-aziz.txt",
+    "candidate_id": "leila.aziz@example.com",
+    "name": "Leila Aziz",
+    "domain": "security"
+  },
+  {
+    "file": "hassan-nakamura.txt",
+    "candidate_id": "hassan.nakamura@example.com",
+    "name": "Hassan Nakamura",
+    "domain": "hr"
+  },
+  {
+    "file": "farah-khalifa.txt",
+    "candidate_id": "farah.khalifa@example.com",
+    "name": "Farah Khalifa",
+    "domain": "frontend"
+  },
+  {
+    "file": "priya-mansour.txt",
+    "candidate_id": "priya.mansour@example.com",
+    "name": "Priya Mansour",
+    "domain": "security"
+  },
+  {
+    "file": "farah-sharma.txt",
+    "candidate_id": "farah.sharma@example.com",
+    "name": "Farah Sharma",
+    "domain": "ml"
+  },
+  {
+    "file": "lucia-osei.txt",
+    "candidate_id": "lucia.osei@example.com",
+    "name": "Lucia Osei",
+    "domain": "mechanical"
+  },
+  {
+    "file": "omar-cheng.txt",
+    "candidate_id": "omar.cheng@example.com",
+    "name": "Omar Cheng",
+    "domain": "accounting"
+  },
+  {
+    "file": "vikram-nasser.txt",
+    "candidate_id": "vikram.nasser@example.com",
+    "name": "Vikram Nasser",
+    "domain": "teaching"
+  },
+  {
+    "file": "farah-mbeki.txt",
+    "candidate_id": "farah.mbeki@example.com",
+    "name": "Farah Mbeki",
+    "domain": "mobile"
+  },
+  {
+    "file": "tariq-osei.txt",
+    "candidate_id": "tariq.osei@example.com",
+    "name": "Tariq Osei",
+    "domain": "security"
+  },
+  {
+    "file": "divya-cheng.txt",
+    "candidate_id": "divya.cheng@example.com",
+    "name": "Divya Cheng",
+    "domain": "mechanical"
+  },
+  {
+    "file": "leila-nakamura.txt",
+    "candidate_id": "leila.nakamura@example.com",
+    "name": "Leila Nakamura",
+    "domain": "marketing"
+  },
+  {
+    "file": "sunil-kapoor.txt",
+    "candidate_id": "sunil.kapoor@example.com",
+    "name": "Sunil Kapoor",
+    "domain": "mechanical"
+  },
+  {
+    "file": "nadia-mansour.txt",
+    "candidate_id": "nadia.mansour@example.com",
+    "name": "Nadia Mansour",
+    "domain": "frontend"
+  }
+]

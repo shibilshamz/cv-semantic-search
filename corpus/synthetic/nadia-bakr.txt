@@ -1,0 +1,23 @@
+Nadia Bakr
+nadia.bakr@example.com | +971 55 183 6117 | Dubai, UAE
+Lebanese national | Residence visa | Immediate notice
+
+Profile
+Mobile Developer with 8 years of experience. Reduced crash-free session rate regressions by adding release gating.
+
+Employment History
+
+Mobile Developer, Careem
+Jun 2022 - Present
+Reduced crash-free session rate regressions by adding release gating.
+Shipped the React Native rewrite of the customer app to 2.4m installs.
+
+Senior React Native Developer, Kitopi
+Apr 2017 - 2022
+Shipped the React Native rewrite of the customer app to 2.4m installs.
+
+Core Competencies
+React Native, Swift, Kotlin, TypeScript, Firebase, Fastlane
+
+Academic Qualifications
+BEng Software Engineering, 2016

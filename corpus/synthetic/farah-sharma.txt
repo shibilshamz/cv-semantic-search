@@ -1,0 +1,23 @@
+Farah Sharma
+farah.sharma@example.com | +971 53 490 3026 | Manama, Bahrain
+Tunisian national | Residence visa | 30 days notice
+
+Professional Summary
+Machine Learning Engineer with 8 years of experience. Built the demand forecasting model now driving daily fleet positioning.
+
+Work Experience
+
+Machine Learning Engineer, Mubadala
+Jan 2022 - Present
+Built the demand forecasting model now driving daily fleet positioning.
+Deployed a churn model that lifted retention campaign precision 2.3x.
+
+Applied Scientist, G42
+Apr 2017 - 2022
+Deployed a churn model that lifted retention campaign precision 2.3x.
+
+Technical Skills
+Python, PyTorch, scikit-learn, MLflow, SQL, Airflow
+
+Education
+MSc Data Science, 2016

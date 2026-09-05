@@ -1,0 +1,34 @@
+# Chroma vector store.
+#
+#   docker compose up -d
+#
+# Three deliberate choices:
+#
+# 1. The tag is PINNED, and pinned to the same version as the client in
+#    requirements.txt. The n8n container on this host runs an untagged
+#    `n8nio/n8n`, so a `docker pull` before any recreate would silently upgrade
+#    it. Not repeating that here.
+#
+# 2. Published on 8001, not the 8000 Chroma defaults to. Port 8000 on this host
+#    belongs to trading-agent.
+#
+# 3. Loopback only. The one process that talks to Chroma (the cv-search API)
+#    runs on the host, so the store never needs to be reachable from the docker
+#    bridge or anywhere else. Worth remembering that a Docker published port
+#    bypasses ufw entirely -- binding 0.0.0.0 here would put the whole candidate
+#    index on the public internet regardless of the firewall.
+services:
+  chroma:
+    image: chromadb/chroma:1.5.9
+    container_name: chroma
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      # Bind mount rather than a named volume -- the same durability pattern as
+      # /root/.n8n. The index survives `docker rm` and can be tar'd for backup.
+      - /root/chroma-data:/data
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/data
+      - ANONYMIZED_TELEMETRY=FALSE

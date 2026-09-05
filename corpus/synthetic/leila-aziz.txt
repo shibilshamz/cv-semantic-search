@@ -1,0 +1,23 @@
+Leila Aziz
+leila.aziz@example.com | +971 51 193 6177 | Kuwait City, Kuwait
+Pakistani national | Residence visa | 1 month notice
+
+Career Summary
+Security Analyst with 4 years of experience. Tier 2 SOC analyst on a 24/7 rotation covering 40 client environments.
+
+Professional Experience
+
+Security Analyst, Help AG
+Jun 2021 - Present
+Tier 2 SOC analyst on a 24/7 rotation covering 40 client environments.
+Built detection rules that cut false positive volume by roughly half.
+
+Cybersecurity Engineer, spiderSilk
+Nov 2019 - 2021
+Built detection rules that cut false positive volume by roughly half.
+
+Key Skills
+Splunk, SIEM, incident response, MITRE ATT&CK, Python, Nessus
+
+Qualifications
+BSc Cybersecurity, 2018
