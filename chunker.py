@@ -97,11 +97,23 @@ def _label(block: str, fallback: str) -> str:
 def split_roles(body: str) -> List[str]:
     """Split an experience section into one block per role, on date ranges.
 
-    The date range is what reliably marks a role, but it is almost never the
-    role's first line -- "Senior Engineer, Emirates NBD" sits above "Jan 2021 -
-    Present". Cutting at the date line alone would strip every job title from the
-    chunk it belongs to and leave the section heading glued to the first role, so
-    the boundary walks back one line to pick the title up.
+    The date range is what reliably marks a role, but CVs put it in one of two
+    places and the difference matters:
+
+        Senior Engineer, Emirates NBD        title on its own line, date below
+        Jan 2021 - Present                   -> the boundary is the line ABOVE
+
+        Sterling Perfumes LLC Sep 2024 - Present    employer and date together
+        Lab Assistant, Perfumery Department          -> the boundary is THIS line
+
+    Backtracking unconditionally breaks the second layout: the line above is the
+    previous role's last bullet, so that bullet gets torn off its own role,
+    prepended to the next one, and becomes its label. Nothing errors -- the
+    chunks just quietly describe the wrong job. Found on a real CV; the synthetic
+    corpus only had the first layout.
+
+    So: strip the date out of the line and see what is left. Residual text means
+    the dated line carries its own employer or title and is already the header.
     """
     lines = body.split("\n")
     dated = [i for i, line in enumerate(lines) if _DATE_RANGE.search(line)]
@@ -110,7 +122,11 @@ def split_roles(body: str) -> List[str]:
 
     bounds = []
     for i in dated:
-        if i > 0 and lines[i - 1].strip() and not _DATE_RANGE.search(lines[i - 1]):
+        match = _DATE_RANGE.search(lines[i])
+        rest = (lines[i][:match.start()] + lines[i][match.end():]).strip(" \t|,;:-–—·•()[]")
+        is_bare_date = len(rest) < 3
+        if (is_bare_date and i > 0 and lines[i - 1].strip()
+                and not _DATE_RANGE.search(lines[i - 1])):
             i -= 1
         bounds.append(i)
 
@@ -202,6 +218,32 @@ BSc Computer Science, American University of Sharjah, 2016
     enbd = next(c for c in chunks if "Emirates NBD" in c.section)
     assert "Network International" not in enbd.text, "roles were not split"
     assert "settlement reconciliation" in enbd.text
+
+    # The other real-world layout: employer and dates share a line, with the job
+    # title underneath. Regression test for a bug found on a live CV, where the
+    # boundary backtracked into the previous role and carried its last bullet
+    # across -- so a chunk about one job was labelled with a line from another.
+    inline_dates = """Priya Raman
+priya.raman@example.com | Sharjah, UAE
+
+WORK EXPERIENCE
+Sterling Perfumes Industries LLC Sep 2024 - Present
+Lab Assistant, Perfumery Department
+Optimised five fine fragrance formulations, cutting raw material cost 12%.
+Execute 25+ sample compounding cycles per month plus daily QC checks.
+Faan Al Ibdaa Perfumes Jun 2023 - Jul 2024
+Chemist and QC, Perfumery Department
+Developed novel formulations within 1% of target cost deviation.
+Conducted QC testing on every finished batch and prepared documentation.
+"""
+    roles = [c for c in split_sections(inline_dates) if "Perfumes" in c.section]
+    assert len(roles) == 2, [c.section for c in split_sections(inline_dates)]
+    sterling = next(c for c in roles if "Sterling" in c.section)
+    faan = next(c for c in roles if "Faan" in c.section)
+    # The bullet belongs to Sterling and must not lead the Faan chunk.
+    assert "compounding cycles" in sterling.text, sterling.text
+    assert "compounding cycles" not in faan.text, faan.text
+    assert "Faan" not in sterling.text, sterling.text
 
     # Fallback: an unstructured CV is one chunk, not zero.
     blob = ("Maria Santos, warehouse supervisor in Jebel Ali with eleven years "
