@@ -116,7 +116,9 @@ python search.py "data engineer who has built streaming pipelines"
 Each module runs its own tests — `python chunker.py`, `python embedder.py` — in
 the style of the sibling repos.
 
-For the API and the VPS deployment, see [deploy/DEPLOY.md](deploy/DEPLOY.md).
+For the API, the VPS deployment, and day-to-day use (browser UI over an SSH
+tunnel, one-command searches, clearing the demo corpus before going live), see
+[deploy/DEPLOY.md](deploy/DEPLOY.md).
 
 ```bash
 curl -X POST localhost:5680/search -H 'content-type: application/json' \

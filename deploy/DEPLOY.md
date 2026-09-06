@@ -132,3 +132,63 @@ everything else, which means it is not a backup of anything:
 tar czf /root/chroma-$(date +%Y%m%d).tar.gz /root/chroma-data
 # then copy it OFF the box, or it is not a backup
 ```
+
+---
+
+# Using it day to day
+
+The API listens on the docker bridge and is not reachable from the internet.
+That is deliberate, and it means every route in goes through SSH.
+
+## The browser interface (easiest)
+
+FastAPI serves an interactive page at `/docs` — type a brief into a form, press
+Execute, read the result. Tunnel to it:
+
+```powershell
+.\deploy\cvsearch.ps1 -Ui        # opens http://localhost:5680/docs
+```
+
+Or by hand, from any machine with SSH:
+
+```bash
+ssh -N -L 5680:172.17.0.1:5680 root@72.61.233.142
+# then open http://localhost:5680/docs in a browser
+```
+
+## One-off searches from the terminal
+
+```powershell
+.\deploy\cvsearch.ps1 "backend engineer comfortable with payments APIs, in the Gulf"
+.\deploy\cvsearch.ps1 "ICU nurse, DHA licensed" -K 3 -NoExplain
+```
+
+`-NoExplain` skips the Claude call: instant, free, and enough when you only want
+to know *who* matched rather than why.
+
+## Going live on real CVs
+
+The index ships holding the 39-candidate synthetic demo corpus. Drop it before
+using this for real work, or your recruiter is searching a population that is
+mostly invented:
+
+```bash
+cd /root/cv-semantic-search
+.venv/bin/python indexer.py --reset          # empties the index and stops
+curl -s http://172.17.0.1:5680/health        # expect "chunks": 0
+```
+
+From then on the index fills by itself: every CV dropped into the Drive Inbox is
+extracted by the n8n pipeline and posted to `/index` on the way past.
+
+## Checking it is keeping up
+
+```bash
+curl -s http://172.17.0.1:5680/health                     # chunk count grows
+grep "possible item mispairing" /var/log/cv-search.err.log # expect silence
+tail -f /var/log/cv-search.err.log                         # live requests
+```
+
+A batch of warnings from that grep means the caller's item pairing has broken and
+CVs are being indexed under the wrong candidates — stop and fix that before
+trusting a search result.

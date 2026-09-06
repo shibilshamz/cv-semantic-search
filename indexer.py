@@ -106,10 +106,12 @@ def index_corpus(directory: Path) -> Dict[str, int]:
 
 def main(argv: Optional[List[str]] = None) -> None:
     ap = argparse.ArgumentParser(description="Index CVs into the vector store.")
-    ap.add_argument("--corpus", type=Path, default=Path("corpus/synthetic"),
-                    help="directory of .txt CVs (default: corpus/synthetic)")
+    ap.add_argument("--corpus", type=Path, default=None,
+                    help="directory of .txt CVs, e.g. corpus/synthetic")
     ap.add_argument("--reset", action="store_true",
-                    help="delete the collection first, for a clean rebuild")
+                    help="delete the collection first. On its own, empties the "
+                         "index and stops -- which is how you drop the synthetic "
+                         "demo corpus before going live on real CVs.")
     args = ap.parse_args(argv)
 
     if args.reset:
@@ -119,6 +121,12 @@ def main(argv: Optional[List[str]] = None) -> None:
             print(f"deleted collection {COLLECTION!r}")
         except Exception as exc:
             print(f"nothing to delete ({type(exc).__name__})")
+
+    if args.corpus is None:
+        if not args.reset:
+            raise SystemExit("nothing to do: pass --corpus DIR, or --reset to empty the index")
+        print(f"index is now empty ({get_collection().count()} chunks)")
+        return
 
     if not args.corpus.exists():
         raise SystemExit(f"corpus not found: {args.corpus}")
