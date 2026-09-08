@@ -116,8 +116,14 @@ python search.py "data engineer who has built streaming pipelines"
 Each module runs its own tests — `python chunker.py`, `python embedder.py` — in
 the style of the sibling repos.
 
-For the API, the VPS deployment, and day-to-day use (browser UI over an SSH
-tunnel, one-command searches, clearing the demo corpus before going live), see
+Then open <http://127.0.0.1:5680/> for the search page:
+
+```bash
+uvicorn api:app --host 127.0.0.1 --port 5680
+```
+
+For the API, the VPS deployment, and day-to-day use (the UI over an SSH tunnel,
+one-command searches, clearing the demo corpus before going live), see
 [deploy/DEPLOY.md](deploy/DEPLOY.md).
 
 ```bash
@@ -127,6 +133,7 @@ curl -X POST localhost:5680/search -H 'content-type: application/json' \
 
 | Route | Purpose |
 |---|---|
+| `GET /` | The search page — a brief in, ranked candidates out |
 | `GET /health` | Liveness, plus how many chunks are actually indexed |
 | `POST /index` | `{candidate_id, name, text}` — what the n8n pipeline calls |
 | `POST /search` | `{text, k, explain}` — `explain: false` skips the Claude call |

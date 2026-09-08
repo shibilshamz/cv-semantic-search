@@ -1,0 +1,249 @@
+<!doctype html>
+<!--
+  The search UI, served by api.py at GET /.
+
+  Served from the API rather than hosted anywhere else, for one reason: the API
+  binds to 172.17.0.1, the docker bridge. A page hosted elsewhere could not
+  reach it without either exposing the service publicly or opening CORS, and
+  both of those are worse than shipping 200 lines of HTML. Same origin means the
+  fetch below needs no configuration at all, and the SSH tunnel in
+  deploy/cvsearch.ps1 already forwards this port.
+
+  No build step, no framework, no CDN. The VPS has 3.8 GB of RAM and no node
+  toolchain, and this page has one job.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CV Semantic Search</title>
+<style>
+  :root {
+    --bg: #f6f6f4;
+    --panel: #fff;
+    --ink: #1a1a19;
+    --muted: #6b6b66;
+    --line: #e2e2dd;
+    --accent: #4a5d3f;
+    --accent-ink: #fff;
+    --warn-bg: #fdf3e3;
+    --warn-line: #e8c98a;
+    --warn-ink: #7a5a17;
+    --strong: #2f6b3a;
+    --weak: #8a8a84;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17171a; --panel: #1f1f23; --ink: #e8e8e4; --muted: #9a9a94;
+      --line: #303036; --accent: #7c9a6b; --accent-ink: #12120f;
+      --warn-bg: #2e2718; --warn-line: #5c4a22; --warn-ink: #e0c48a;
+      --strong: #8fc79b; --weak: #77776f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1.25rem 4rem;
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 1.3rem; margin: 0 0 .2rem; font-weight: 650; }
+  .sub { color: var(--muted); font-size: .85rem; margin: 0 0 1.5rem; }
+  .sub code { font-size: .8rem; }
+
+  form { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; }
+  textarea {
+    width: 100%; min-height: 84px; resize: vertical; padding: .7rem .8rem;
+    font: inherit; color: var(--ink); background: transparent;
+    border: 1px solid var(--line); border-radius: 7px;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .controls { display: flex; flex-wrap: wrap; gap: .9rem; align-items: center; margin-top: .8rem; }
+  label { font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: .4rem; }
+  input[type=number] {
+    width: 4rem; padding: .3rem .4rem; font: inherit; color: var(--ink);
+    background: transparent; border: 1px solid var(--line); border-radius: 5px;
+  }
+  button {
+    margin-left: auto; padding: .5rem 1.3rem; font: inherit; font-weight: 600;
+    color: var(--accent-ink); background: var(--accent);
+    border: 0; border-radius: 7px; cursor: pointer;
+  }
+  button:disabled { opacity: .55; cursor: default; }
+
+  .examples { margin-top: .7rem; display: flex; flex-wrap: wrap; gap: .4rem; }
+  .examples button {
+    margin: 0; padding: .25rem .6rem; font-size: .78rem; font-weight: 400;
+    color: var(--muted); background: transparent;
+    border: 1px solid var(--line); border-radius: 999px;
+  }
+  .examples button:hover { color: var(--ink); border-color: var(--accent); }
+
+  #out { margin-top: 1.5rem; }
+  .note {
+    padding: .7rem .9rem; border-radius: 8px; font-size: .87rem;
+    border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+  }
+  .note.warn { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-ink); }
+
+  ol.hits { list-style: none; margin: 0 0 1.4rem; padding: 0; }
+  ol.hits li {
+    display: grid; grid-template-columns: 1.6rem 1fr auto; gap: .1rem .7rem;
+    align-items: baseline; padding: .65rem .9rem;
+    background: var(--panel); border: 1px solid var(--line); border-top: 0;
+  }
+  ol.hits li:first-child { border-top: 1px solid var(--line); border-radius: 8px 8px 0 0; }
+  ol.hits li:last-child { border-radius: 0 0 8px 8px; }
+  .rank { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .name { font-weight: 600; }
+  /* The score is the thing you compare across rows, so it is monospaced and
+     right-aligned -- proportional digits make +0.413 and +0.391 hard to rank
+     by eye, which is the one job this column has. */
+  .score {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-variant-numeric: tabular-nums; font-size: .9rem;
+  }
+  .score.strong { color: var(--strong); }
+  .score.weak { color: var(--weak); }
+  .meta { grid-column: 2 / 4; font-size: .8rem; color: var(--muted); }
+  /* The section label is why this person matched -- "Professional Summary" is a
+     claim about themselves, "Senior Engineer, Emirates NBD" is job history.
+     Worth showing, not worth shouting. */
+  .section { color: var(--ink); opacity: .75; }
+
+  .answer {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1rem 1.1rem; white-space: pre-wrap; font-size: .92rem;
+  }
+  .answer h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em;
+               color: var(--muted); margin: 0 0 .7rem; font-weight: 600; }
+  footer { margin-top: 2.5rem; font-size: .78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>CV Semantic Search</h1>
+  <p class="sub" id="status">checking index&hellip;</p>
+
+  <form id="f">
+    <textarea id="brief" required minlength="3"
+      placeholder="Describe the role the way you would to a colleague.&#10;&#10;Not &quot;payments API Gulf&quot; — the search compares meaning, so a full sentence gives it more to work with."></textarea>
+    <div class="controls">
+      <label>candidates <input type="number" id="k" value="5" min="1" max="20"></label>
+      <label><input type="checkbox" id="explain" checked> explain with Claude</label>
+      <button id="go" type="submit">Search</button>
+    </div>
+    <div class="examples" id="examples"></div>
+  </form>
+
+  <div id="out"></div>
+
+  <footer>
+    Retrieval is free and instant. Unticking <em>explain</em> skips the Claude call.
+    Scores are cosine similarity; below <span id="minscore">0.35</span> the best match
+    is not really a match.
+  </footer>
+</main>
+
+<script>
+// Briefs that show what the thing is for. The first is the one the eval is built
+// around: no word in it appears in the target CV.
+const EXAMPLES = [
+  "backend engineer comfortable with payments APIs, based in the Gulf",
+  "ICU nurse, DHA licensed, ventilator experience",
+  "warehouse supervisor who has run a team in Jebel Ali",
+  "data engineer who has built streaming pipelines",
+];
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+let MIN_SCORE = 0.35;
+
+EXAMPLES.forEach(text => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = text.length > 46 ? text.slice(0, 44) + "…" : text;
+  b.title = text;
+  b.onclick = () => { $("brief").value = text; $("brief").focus(); };
+  $("examples").appendChild(b);
+});
+
+// Health first. "0 chunks indexed" is the single most likely reason a search
+// comes back empty, and finding that out before typing a brief beats finding it
+// out after.
+fetch("health").then(r => r.json()).then(h => {
+  MIN_SCORE = h.min_score ?? MIN_SCORE;
+  $("minscore").textContent = MIN_SCORE;
+  $("status").innerHTML = h.chunks
+    ? `${h.chunks} chunks indexed &middot; <code>${esc(h.store)}</code> &middot; ranking by <code>${esc(h.model)}</code>`
+    : `<strong>Nothing is indexed.</strong> Run <code>python indexer.py --corpus &lt;dir&gt;</code> first.`;
+}).catch(() => {
+  $("status").textContent = "cannot reach the API — is cv-search running?";
+});
+
+$("f").onsubmit = async e => {
+  e.preventDefault();
+  const brief = $("brief").value.trim();
+  if (brief.length < 3) return;
+
+  $("go").disabled = true;
+  $("go").textContent = $("explain").checked ? "Ranking…" : "Searching…";
+  $("out").innerHTML = '<p class="note">searching…</p>';
+
+  try {
+    const res = await fetch("search", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: brief, k: +$("k").value, explain: $("explain").checked }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || res.statusText);
+    render(data);
+  } catch (err) {
+    $("out").innerHTML = `<p class="note warn">${esc(err.message)}</p>`;
+  } finally {
+    $("go").disabled = false;
+    $("go").textContent = "Search";
+  }
+};
+
+function render(d) {
+  const parts = [];
+
+  if (!d.matches || !d.matches.length) {
+    $("out").innerHTML = '<p class="note">No candidates indexed, so there is nothing to match.</p>';
+    return;
+  }
+
+  // The `weak` flag exists so a caller does not have to infer "nobody fits" from
+  // prose. Honour it: say it plainly, above the list, before the names get read
+  // as a shortlist.
+  if (d.weak) {
+    parts.push(`<p class="note warn"><strong>No strong match.</strong> The best score is
+      ${d.top_score.toFixed(3)}, below the ${MIN_SCORE} threshold — these are the nearest
+      people in the index, not people who fit the brief.</p>`);
+  }
+
+  parts.push("<ol class=\"hits\">" + d.matches.map((m, i) => `
+    <li>
+      <span class="rank">${i + 1}.</span>
+      <span class="name">${esc(m.name) || "<em>unnamed</em>"}</span>
+      <span class="score ${m.score >= MIN_SCORE ? "strong" : "weak"}">${m.score >= 0 ? "+" : ""}${m.score.toFixed(3)}</span>
+      <span class="meta">${esc(m.candidate_id)} &middot; matched on <span class="section">${esc(m.section)}</span></span>
+    </li>`).join("") + "</ol>");
+
+  // The API degrades to retrieval when ANTHROPIC_API_KEY is missing rather than
+  // failing the request, so the error arrives alongside usable matches.
+  if (d.error) {
+    parts.push(`<p class="note warn">Ranking unavailable: ${esc(d.error)}</p>`);
+  } else if (d.answer) {
+    parts.push(`<div class="answer"><h2>Ranked against the brief</h2>${esc(d.answer)}</div>`);
+  }
+
+  $("out").innerHTML = parts.join("");
+}
+</script>
+</body>
+</html>

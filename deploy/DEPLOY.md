@@ -142,19 +142,28 @@ That is deliberate, and it means every route in goes through SSH.
 
 ## The browser interface (easiest)
 
-FastAPI serves an interactive page at `/docs` — type a brief into a form, press
-Execute, read the result. Tunnel to it:
+The API serves the search page at `/` (`ui.html`, rendered by `api.py`) — type a
+brief, get ranked candidates with their scores, the section each one matched on,
+and Claude's write-up. Tunnel to it:
 
 ```powershell
-.\deploy\cvsearch.ps1 -Ui        # opens http://localhost:5680/docs
+.\deploy\cvsearch.ps1 -Ui        # opens http://localhost:5680/
 ```
 
 Or by hand, from any machine with SSH:
 
 ```bash
 ssh -N -L 5680:172.17.0.1:5680 root@72.61.233.142
-# then open http://localhost:5680/docs in a browser
+# then open http://localhost:5680/ in a browser
 ```
+
+The page is served from the API rather than hosted separately because the API
+binds to the docker bridge: any other origin would need the service exposed
+publicly or CORS opened, and both are worse than shipping one HTML file. It is
+read per request, so editing `ui.html` on the box takes effect on refresh with no
+`supervisorctl restart`.
+
+FastAPI's generated `/docs` is still there for poking the JSON API directly.
 
 ## One-off searches from the terminal
 

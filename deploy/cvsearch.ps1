@@ -53,8 +53,10 @@ try {
   Write-Host "index: $($h.chunks) chunks" -ForegroundColor DarkGray
 
   if ($Ui) {
-    Write-Host "opening http://localhost:$Port/docs -- close this window to end the tunnel" -ForegroundColor Cyan
-    Start-Process "http://localhost:$Port/docs"
+    # The search page, not /docs. FastAPI's generated page is a form for poking
+    # the JSON API; this one is the thing you actually search with.
+    Write-Host "opening http://localhost:$Port/ -- close this window to end the tunnel" -ForegroundColor Cyan
+    Start-Process "http://localhost:$Port/"
     Write-Host "Press Enter to close the tunnel..." -ForegroundColor DarkGray
     [void][System.Console]::ReadLine()
     return

@@ -29,9 +29,11 @@ Set API_HOST=127.0.0.1 in .env for local development.
 """
 
 import logging
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, field_validator
 
 import store
@@ -73,6 +75,27 @@ class Candidate(BaseModel):
         if "@" not in v or v.startswith("@") or v.endswith("@"):
             raise ValueError("candidate_id must be an email address")
         return v
+
+
+UI = Path(__file__).parent / "ui.html"
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def ui():
+    """The search page.
+
+    Served from this app rather than hosted separately because the API binds to
+    the docker bridge: any other origin would need the service exposed publicly
+    or CORS opened, and a static file on the same origin needs neither.
+
+    Read per request, not cached at import, so editing ui.html on the box shows
+    up on refresh without a supervisorctl restart. One file read on a page load
+    that is about to make a Claude call is not the cost worth optimising.
+    """
+    try:
+        return UI.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise HTTPException(404, "ui.html is missing; the JSON API still works")
 
 
 @app.get("/health")
@@ -132,12 +155,20 @@ def search_endpoint(brief: Brief):
     try:
         return search(brief.text, brief.k, brief.explain)
     except RuntimeError as exc:
-        # Missing API key: retrieval still works, so degrade to it rather than
-        # failing the request outright.
+        # Ranking unavailable -- no API key, or the anthropic package missing.
+        # Retrieval still works, so degrade to it rather than failing outright.
+        #
+        # This path must carry `weak` and `top_score` like the normal one. They
+        # are what a caller branches on to say "nobody fits" instead of showing
+        # five near-misses as a shortlist, and dropping them here made the
+        # degraded response quietly less safe than the response it stands in for.
+        hits = retrieve(brief.text, brief.k)
+        top = hits[0]["score"] if hits else 0.0
         return {"brief": brief.text, "answer": None, "error": str(exc),
+                "weak": bool(hits) and top < MIN_SCORE, "top_score": top,
                 "matches": [{"candidate_id": h["candidate_id"], "name": h["name"],
                              "section": h["section"], "score": h["score"]}
-                            for h in retrieve(brief.text, brief.k)]}
+                            for h in hits]}
     except Exception as exc:
         raise HTTPException(500, f"search failed: {type(exc).__name__}: {exc}")
 

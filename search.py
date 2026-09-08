@@ -117,7 +117,14 @@ def rank(brief: str, results: List[Dict]) -> str:
     if not results:
         return "No candidates are indexed, so there is nothing to rank."
 
-    import anthropic
+    # Both failures below are the same thing to a caller -- ranking is
+    # unavailable, retrieval still works -- so both raise RuntimeError, which is
+    # what api.py catches to degrade to matches-only instead of 500ing and
+    # throwing the retrieved candidates away with it.
+    try:
+        import anthropic
+    except ImportError as exc:
+        raise RuntimeError(f"anthropic is not installed; retrieval works, ranking does not ({exc})")
 
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise RuntimeError("ANTHROPIC_API_KEY is not set; retrieval works, ranking does not")
