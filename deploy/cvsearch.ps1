@@ -15,7 +15,7 @@ param(
   [Parameter(Position = 0)][string]$Brief,
   [int]$K = 5,
   [switch]$NoExplain,     # skip the Claude ranking call: instant, free, no prose
-  [switch]$Ui,            # open the interactive API docs instead of querying
+  [switch]$Ui,            # open the search page instead of querying from here
   [string]$VpsHost = "72.61.233.142",
   [int]$Port = 5680
 )
@@ -30,12 +30,30 @@ if (-not $Ui -and [string]::IsNullOrWhiteSpace($Brief)) {
   exit 1
 }
 
-$args = @("-batch", "-N", "-hostkey", $hostkey, "-L", "${Port}:172.17.0.1:${Port}")
-if ($env:VPS_PASSWORD) { $args += @("-pw", $env:VPS_PASSWORD) }
+# -batch disables every plink prompt, including the password one. Passing it
+# unconditionally meant that on a box with password auth and no key -- which is
+# this one -- the tunnel died instantly and the wait loop below blamed the VPS.
+#
+# So: batch mode only when we already have a credential to hand it. Otherwise
+# run plink in its own visible window with prompts enabled, and let it ask.
+# That path also keeps the password off the command line, where -pw puts it in
+# plain view of anyone running `ps`.
+$args = @("-N", "-hostkey", $hostkey, "-L", "${Port}:172.17.0.1:${Port}")
+$interactive = -not $env:VPS_PASSWORD
+
+if ($env:VPS_PASSWORD) {
+  $args = @("-batch") + $args + @("-pw", $env:VPS_PASSWORD)
+}
 $args += "root@$VpsHost"
 
 Write-Host "opening tunnel to $VpsHost..." -ForegroundColor DarkGray
-$tunnel = Start-Process -FilePath $plink -ArgumentList $args -PassThru -WindowStyle Hidden
+if ($interactive) {
+  Write-Host "plink will ask for the root password in its own window." -ForegroundColor DarkGray
+  Write-Host "(set `$env:VPS_PASSWORD to skip the prompt, or use an SSH key)" -ForegroundColor DarkGray
+  $tunnel = Start-Process -FilePath $plink -ArgumentList $args -PassThru
+} else {
+  $tunnel = Start-Process -FilePath $plink -ArgumentList $args -PassThru -WindowStyle Hidden
+}
 
 try {
   # Wait for the tunnel rather than guessing at a sleep duration.
@@ -48,7 +66,12 @@ try {
       break
     } catch { }
   }
-  if (-not $ready) { throw "tunnel did not come up; is the VPS reachable and cv-search running?" }
+  if (-not $ready) {
+    if ($tunnel.HasExited) {
+      throw "plink exited before the tunnel opened -- most likely authentication. Enter the password in the plink window, set `$env:VPS_PASSWORD, or install an SSH key."
+    }
+    throw "tunnel opened but nothing answered on $Port; check `supervisorctl status cv-search` on the box."
+  }
 
   Write-Host "index: $($h.chunks) chunks" -ForegroundColor DarkGray
 
