@@ -105,7 +105,12 @@ def health():
         count = store.get_collection().count()
     except Exception as exc:
         raise HTTPException(503, f"vector store unreachable: {type(exc).__name__}")
+    # The collection name is here because two instances of this service can point
+    # at the same Chroma and different collections -- a demo corpus alongside the
+    # real one. Two identical-looking pages, one holding real candidate data, is
+    # exactly the confusion worth spending a field on.
     return {"status": "ok", "store": store.describe(), "chunks": count,
+            "collection": store.COLLECTION,
             "model": store.CLAUDE_MODEL, "min_score": MIN_SCORE}
 
 
