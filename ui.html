@@ -113,10 +113,23 @@
 
   .answer {
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    padding: 1rem 1.1rem; white-space: pre-wrap; font-size: .92rem;
+    padding: 1rem 1.1rem; font-size: .92rem;
   }
   .answer h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em;
                color: var(--muted); margin: 0 0 .7rem; font-weight: 600; }
+  .answer h3 { font-size: .95rem; margin: 1.1rem 0 .4rem; font-weight: 650; }
+  .answer h3:first-of-type { margin-top: 0; }
+  .answer p { margin: 0 0 .7rem; }
+  .answer p:last-child { margin-bottom: 0; }
+  .answer ul { margin: 0 0 .7rem; padding-left: 1.2rem; }
+  .answer li { margin-bottom: .35rem; }
+  /* Claude cites [candidate_id] behind every claim. Dimming them keeps the
+     citation visible as evidence without letting repeated emails dominate the
+     prose they are supporting. */
+  .answer .cite {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: .82em; color: var(--muted);
+  }
   footer { margin-top: 2.5rem; font-size: .78rem; color: var(--muted); }
 </style>
 </head>
@@ -209,6 +222,41 @@ $("f").onsubmit = async e => {
   }
 };
 
+// Just enough Markdown for what the ranking prompt actually produces: headings,
+// bold, bullets, paragraphs. Not a general parser -- a general parser here would
+// be more code than the rest of the page and would still need the same escaping.
+//
+// esc() runs FIRST and everything after it operates on already-escaped text, so
+// no markup in the model's output can become live HTML. The model is grounded on
+// CV text, which is uploaded by other people; treating its output as untrusted
+// costs one line of ordering discipline.
+function md(src) {
+  const inline = t => esc(t)
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(?<!\w)\*([^*\n]+)\*(?!\w)/g, "<em>$1</em>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\[([^\]\s]+@[^\]\s]+)\]/g, '<span class="cite">[$1]</span>');
+
+  const out = [];
+  let list = null;
+
+  const closeList = () => { if (list) { out.push(`<ul>${list.join("")}</ul>`); list = null; } };
+
+  for (const raw of src.split("\n")) {
+    const line = raw.trim();
+    if (!line) { closeList(); continue; }
+
+    const heading = line.match(/^#{1,6}\s+(.*)$/);
+    const bullet = line.match(/^[-*+]\s+(.*)$/);
+
+    if (heading) { closeList(); out.push(`<h3>${inline(heading[1])}</h3>`); }
+    else if (bullet) { (list ??= []).push(`<li>${inline(bullet[1])}</li>`); }
+    else { closeList(); out.push(`<p>${inline(line)}</p>`); }
+  }
+  closeList();
+  return out.join("");
+}
+
 function render(d) {
   const parts = [];
 
@@ -239,7 +287,7 @@ function render(d) {
   if (d.error) {
     parts.push(`<p class="note warn">Ranking unavailable: ${esc(d.error)}</p>`);
   } else if (d.answer) {
-    parts.push(`<div class="answer"><h2>Ranked against the brief</h2>${esc(d.answer)}</div>`);
+    parts.push(`<div class="answer"><h2>Ranked against the brief</h2>${md(d.answer)}</div>`);
   }
 
   $("out").innerHTML = parts.join("");
