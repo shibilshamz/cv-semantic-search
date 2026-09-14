@@ -5,158 +5,348 @@
   Served from the API rather than hosted anywhere else, for one reason: the API
   binds to 172.17.0.1, the docker bridge. A page hosted elsewhere could not
   reach it without either exposing the service publicly or opening CORS, and
-  both of those are worse than shipping 200 lines of HTML. Same origin means the
+  both of those are worse than shipping one HTML file. Same origin means the
   fetch below needs no configuration at all, and the SSH tunnel in
   deploy/cvsearch.ps1 already forwards this port.
 
-  No build step, no framework, no CDN. The VPS has 3.8 GB of RAM and no node
-  toolchain, and this page has one job.
+  No build step, no framework, no CDN, no webfont. The VPS has 3.8 GB of RAM and
+  no node toolchain, and a client install has to be one file plus one process.
+
+  Written for a recruiter, not for the person who built it. The chunk count,
+  collection name, model id and cosine scores are all still here -- behind the
+  "System" disclosure and the per-candidate "Details" toggle -- because they are
+  the first things to look at when something is wrong. They are just not what a
+  buyer sees on the first screen.
+
+  Fetch paths are relative ("health", "search") so the page survives being
+  mounted under a subpath by a reverse proxy on a client's server.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CV Semantic Search</title>
+<title>CV Search</title>
 <style>
   :root {
-    --bg: #f6f6f4;
-    --panel: #fff;
-    --ink: #1a1a19;
-    --muted: #6b6b66;
-    --line: #e2e2dd;
-    --accent: #4a5d3f;
-    --accent-ink: #fff;
-    --warn-bg: #fdf3e3;
-    --warn-line: #e8c98a;
-    --warn-ink: #7a5a17;
-    --strong: #2f6b3a;
-    --weak: #8a8a84;
+    --paper:      #fbfaf8;
+    --card:       #ffffff;
+    --ink:        #16202b;
+    --slate:      #5c6b7a;
+    --rule:       #e4e7e9;
+    --accent:     #1d5c63;
+    --accent-ink: #ffffff;
+    --accent-bg:  #eaf2f1;
+    --flag:       #a8531e;
+    --flag-bg:    #fdf4ec;
+    --flag-rule:  #ecd5bd;
+    --shadow:     0 1px 2px rgba(22, 32, 43, .05);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #17171a; --panel: #1f1f23; --ink: #e8e8e4; --muted: #9a9a94;
-      --line: #303036; --accent: #7c9a6b; --accent-ink: #12120f;
-      --warn-bg: #2e2718; --warn-line: #5c4a22; --warn-ink: #e0c48a;
-      --strong: #8fc79b; --weak: #77776f;
+      --paper:      #12171c;
+      --card:       #1a2027;
+      --ink:        #e6e9ec;
+      --slate:      #98a5b1;
+      --rule:       #2b333c;
+      --accent:     #6fb3b8;
+      --accent-ink: #101618;
+      --accent-bg:  #1c2b2d;
+      --flag:       #d9a267;
+      --flag-bg:    #2a2118;
+      --flag-rule:  #4b3a24;
+      --shadow:     none;
     }
   }
+
   * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
   body {
-    margin: 0; padding: 2rem 1.25rem 4rem;
-    background: var(--bg); color: var(--ink);
-    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
   }
-  main { max-width: 780px; margin: 0 auto; }
-  h1 { font-size: 1.3rem; margin: 0 0 .2rem; font-weight: 650; }
-  .sub { color: var(--muted); font-size: .85rem; margin: 0 0 1.5rem; }
-  .sub code { font-size: .8rem; }
 
-  form { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem; }
-  textarea {
-    width: 100%; min-height: 84px; resize: vertical; padding: .7rem .8rem;
-    font: inherit; color: var(--ink); background: transparent;
-    border: 1px solid var(--line); border-radius: 7px;
-  }
-  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
-  .controls { display: flex; flex-wrap: wrap; gap: .9rem; align-items: center; margin-top: .8rem; }
-  label { font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: .4rem; }
-  input[type=number] {
-    width: 4rem; padding: .3rem .4rem; font: inherit; color: var(--ink);
-    background: transparent; border: 1px solid var(--line); border-radius: 5px;
-  }
-  button {
-    margin-left: auto; padding: .5rem 1.3rem; font: inherit; font-weight: 600;
-    color: var(--accent-ink); background: var(--accent);
-    border: 0; border-radius: 7px; cursor: pointer;
-  }
-  button:disabled { opacity: .55; cursor: default; }
+  /* ---- top bar ------------------------------------------------------- */
 
-  .examples { margin-top: .7rem; display: flex; flex-wrap: wrap; gap: .4rem; }
-  .examples button {
-    margin: 0; padding: .25rem .6rem; font-size: .78rem; font-weight: 400;
-    color: var(--muted); background: transparent;
-    border: 1px solid var(--line); border-radius: 999px;
+  .bar {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .8rem 1.25rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--card);
   }
-  .examples button:hover { color: var(--ink); border-color: var(--accent); }
+  .bar h1 {
+    margin: 0;
+    font-family: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    font-size: 1.15rem; font-weight: 600; letter-spacing: -.01em;
+  }
+  .pulse {
+    margin-left: auto; display: flex; align-items: center; gap: .45rem;
+    font-size: .82rem; color: var(--slate);
+  }
+  .dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--slate); }
+  .dot.live { background: var(--accent); }
+  .dot.down { background: var(--flag); }
 
-  #out { margin-top: 1.5rem; }
-  .note {
-    padding: .7rem .9rem; border-radius: 8px; font-size: .87rem;
-    border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+  .sysbtn {
+    padding: .3rem .65rem; font: inherit; font-size: .8rem;
+    color: var(--slate); background: transparent;
+    border: 1px solid var(--rule); border-radius: 6px; cursor: pointer;
   }
-  .note.warn { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-ink); }
+  .sysbtn:hover { color: var(--ink); }
 
-  ol.hits { list-style: none; margin: 0 0 1.4rem; padding: 0; }
-  ol.hits li {
-    display: grid; grid-template-columns: 1.6rem 1fr auto; gap: .1rem .7rem;
-    align-items: baseline; padding: .65rem .9rem;
-    background: var(--panel); border: 1px solid var(--line); border-top: 0;
+  #sys {
+    display: none; padding: .7rem 1.25rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--card);
+    font-size: .8rem; color: var(--slate);
   }
-  ol.hits li:first-child { border-top: 1px solid var(--line); border-radius: 8px 8px 0 0; }
-  ol.hits li:last-child { border-radius: 0 0 8px 8px; }
-  .rank { color: var(--muted); font-variant-numeric: tabular-nums; }
-  .name { font-weight: 600; }
-  /* The score is the thing you compare across rows, so it is monospaced and
-     right-aligned -- proportional digits make +0.413 and +0.391 hard to rank
-     by eye, which is the one job this column has. */
-  .score {
-    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-    font-variant-numeric: tabular-nums; font-size: .9rem;
+  #sys.open { display: block; }
+  #sys dl { display: grid; grid-template-columns: auto 1fr; gap: .2rem 1rem; margin: 0; }
+  #sys dt { color: var(--slate); }
+  #sys dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums; word-break: break-all; }
+
+  /* ---- thread -------------------------------------------------------- */
+
+  .scroll { flex: 1; overflow-y: auto; }
+  .thread { max-width: 46rem; margin: 0 auto; padding: 1.5rem 1.25rem 2rem; }
+
+  .banner {
+    padding: .75rem .9rem; margin-bottom: 1.5rem;
+    border: 1px solid var(--flag-rule); border-radius: 8px;
+    background: var(--flag-bg); color: var(--flag); font-size: .86rem;
   }
-  .score.strong { color: var(--strong); }
-  .score.weak { color: var(--weak); }
-  .meta { grid-column: 2 / 4; font-size: .8rem; color: var(--muted); }
-  /* The section label is why this person matched -- "Professional Summary" is a
-     claim about themselves, "Senior Engineer, Emirates NBD" is job history.
-     Worth showing, not worth shouting. */
-  .section { color: var(--ink); opacity: .75; }
+  .banner b { font-weight: 650; }
+
+  .intro {
+    display: flex; flex-direction: column; justify-content: center;
+    min-height: 58vh; padding: 1rem 0;
+  }
+  .intro h2 {
+    font-family: ui-serif, Georgia, "Iowan Old Style", serif;
+    font-size: 1.5rem; font-weight: 500; line-height: 1.3;
+    margin: 0 0 .6rem; letter-spacing: -.015em; max-width: 30ch;
+  }
+  .intro p { margin: 0 0 1.2rem; color: var(--slate); max-width: 52ch; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: .45rem; }
+  .chips button {
+    padding: .4rem .8rem; font: inherit; font-size: .84rem; text-align: left;
+    color: var(--ink); background: var(--card);
+    border: 1px solid var(--rule); border-radius: 999px; cursor: pointer;
+  }
+  .chips button:hover { border-color: var(--accent); color: var(--accent); }
+
+  .turn { margin-bottom: 2.25rem; }
+  .asked {
+    max-width: 32rem; margin: 0 0 1.1rem auto; padding: .6rem .9rem;
+    background: var(--accent-bg); border-radius: 12px 12px 3px 12px;
+    font-size: .95rem;
+  }
+  .count { margin: 0 0 .6rem; font-size: .83rem; color: var(--slate); }
+
+  /* ---- candidate cards ----------------------------------------------- */
+
+  ol.people { list-style: none; margin: 0 0 1.25rem; padding: 0; }
+  ol.people li {
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: 10px; margin-bottom: .5rem; padding: .85rem 1rem;
+    box-shadow: var(--shadow);
+  }
+  .row { display: flex; align-items: flex-start; gap: .75rem; }
+  .pick {
+    flex: none; width: 1.05rem; height: 1.05rem; margin: .25rem 0 0;
+    accent-color: var(--accent); cursor: pointer;
+  }
+  .who { flex: 1; min-width: 0; }
+  .who h3 {
+    font-family: ui-serif, Georgia, "Iowan Old Style", serif;
+    font-size: 1.12rem; font-weight: 600; letter-spacing: -.01em;
+    margin: 0 0 .12rem; line-height: 1.25;
+  }
+  .mail { font-size: .84rem; color: var(--slate); word-break: break-all; }
+  .why { margin-top: .35rem; font-size: .85rem; color: var(--slate); }
+  .why em { font-style: normal; color: var(--ink); }
+
+  .strength { flex: none; width: 6.5rem; text-align: right; }
+  .strength .word { font-size: .8rem; font-weight: 600; color: var(--accent); }
+  .strength .word.low { color: var(--slate); font-weight: 500; }
+  .meter {
+    height: 3px; margin-top: .4rem; border-radius: 2px;
+    background: var(--rule); overflow: hidden;
+  }
+  .meter i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+  .meter i.low { background: var(--slate); opacity: .55; }
+
+  .detail {
+    margin-top: .6rem; padding-top: .55rem;
+    border-top: 1px dashed var(--rule);
+    font-size: .8rem; color: var(--slate);
+    font-variant-numeric: tabular-nums;
+  }
+  details > summary {
+    margin: .5rem 0 0 1.8rem; font-size: .78rem; color: var(--slate);
+    cursor: pointer; list-style: none; width: fit-content;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary:hover { color: var(--ink); }
+
+  /* ---- Claude's ranking ---------------------------------------------- */
 
   .answer {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    padding: 1rem 1.1rem; font-size: .92rem;
+    background: var(--card); border: 1px solid var(--rule);
+    border-left: 2px solid var(--accent);
+    border-radius: 4px 10px 10px 4px; padding: 1rem 1.15rem; font-size: .93rem;
   }
-  .answer h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em;
-               color: var(--muted); margin: 0 0 .7rem; font-weight: 600; }
-  .answer h3 { font-size: .95rem; margin: 1.1rem 0 .4rem; font-weight: 650; }
-  .answer h3:first-of-type { margin-top: 0; }
-  .answer p { margin: 0 0 .7rem; }
-  .answer p:last-child { margin-bottom: 0; }
-  .answer ul { margin: 0 0 .7rem; padding-left: 1.2rem; }
+  .answer > h3 {
+    font-family: ui-serif, Georgia, serif;
+    font-size: 1rem; font-weight: 600; margin: 0 0 .75rem;
+  }
+  .answer h4 { font-size: .93rem; margin: 1.1rem 0 .35rem; font-weight: 650; }
+  .answer p { margin: 0 0 .7rem; max-width: 68ch; }
+  .answer p:last-child, .answer ul:last-child { margin-bottom: 0; }
+  .answer ul { margin: 0 0 .7rem; padding-left: 1.15rem; }
   .answer li { margin-bottom: .35rem; }
-  /* Claude cites [candidate_id] behind every claim. Dimming them keeps the
-     citation visible as evidence without letting repeated emails dominate the
-     prose they are supporting. */
-  .answer .cite {
-    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-    font-size: .82em; color: var(--muted);
+  /* Claude cites [candidate_id] behind every claim. Dimming keeps the citation
+     visible as evidence without letting repeated emails dominate the prose. */
+  .answer .cite { font-size: .82em; color: var(--slate); }
+
+  .note {
+    padding: .7rem .9rem; border-radius: 8px; font-size: .87rem;
+    border: 1px solid var(--rule); background: var(--card); color: var(--slate);
   }
-  footer { margin-top: 2.5rem; font-size: .78rem; color: var(--muted); }
+  .note.flag {
+    background: var(--flag-bg); border-color: var(--flag-rule); color: var(--flag);
+  }
+  .note.flag b { font-weight: 650; }
+
+  .thinking { display: flex; align-items: center; gap: .5rem; color: var(--slate); font-size: .9rem; }
+  .thinking span {
+    width: .4rem; height: .4rem; border-radius: 50%; background: var(--slate);
+    animation: blink 1.2s infinite;
+  }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25 } 40% { opacity: 1 } }
+
+  /* ---- shortlist ------------------------------------------------------ */
+
+  #tray {
+    display: none; align-items: center; gap: .75rem; flex-wrap: wrap;
+    max-width: 46rem; margin: 0 auto; padding: .6rem 1.25rem;
+  }
+  #tray.on { display: flex; }
+  #tray .n { font-size: .87rem; }
+  #tray button {
+    padding: .35rem .8rem; font: inherit; font-size: .84rem;
+    color: var(--ink); background: var(--card);
+    border: 1px solid var(--rule); border-radius: 6px; cursor: pointer;
+  }
+  #tray button:hover { border-color: var(--accent); color: var(--accent); }
+  #tray .clear { margin-left: auto; color: var(--slate); border-color: transparent; }
+
+  /* ---- composer ------------------------------------------------------- */
+
+  .dock { border-top: 1px solid var(--rule); background: var(--card); }
+  form { max-width: 46rem; margin: 0 auto; padding: .9rem 1.25rem 1.1rem; }
+  .field {
+    display: flex; align-items: flex-end; gap: .6rem;
+    border: 1px solid var(--rule); border-radius: 12px;
+    padding: .5rem .5rem .5rem .8rem; background: var(--paper);
+  }
+  .field:focus-within { border-color: var(--accent); }
+  textarea {
+    flex: 1; border: 0; background: transparent; resize: none;
+    font: inherit; color: var(--ink); padding: .35rem 0;
+    max-height: 8rem; min-height: 1.6rem;
+  }
+  textarea:focus { outline: none; }
+  #go {
+    flex: none; padding: .5rem 1.1rem; font: inherit; font-weight: 600;
+    color: var(--accent-ink); background: var(--accent);
+    border: 0; border-radius: 8px; cursor: pointer;
+  }
+  #go:disabled { opacity: .5; cursor: default; }
+
+  .opts {
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    margin-top: .55rem; font-size: .8rem; color: var(--slate);
+  }
+  .opts label { display: flex; align-items: center; gap: .4rem; }
+  .opts input[type=number] {
+    width: 3.2rem; padding: .2rem .35rem; font: inherit; color: var(--ink);
+    background: transparent; border: 1px solid var(--rule); border-radius: 5px;
+  }
+  .opts .hint { margin-left: auto; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .rise { animation: rise .28s ease-out both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(5px) } to { opacity: 1; transform: none } }
+  @media (prefers-reduced-motion: reduce) {
+    .rise { animation: none; }
+    .thinking span { animation: none; opacity: .6; }
+  }
+
+  @media (max-width: 30rem) {
+    .row { flex-wrap: wrap; }
+    .strength { width: auto; margin-left: auto; text-align: right; }
+    .meter { width: 5rem; margin-left: auto; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <h1>CV Semantic Search</h1>
-  <p class="sub" id="status">checking index&hellip;</p>
 
+<header class="bar">
+  <h1>CV Search</h1>
+  <div class="pulse"><span class="dot" id="dot"></span><span id="state">connecting</span></div>
+  <button class="sysbtn" id="systoggle" type="button" aria-expanded="false">System</button>
+</header>
+
+<section id="sys" aria-label="System details">
+  <dl>
+    <dt>Index</dt><dd id="s-chunks">—</dd>
+    <dt>Collection</dt><dd id="s-collection">—</dd>
+    <dt>Ranking model</dt><dd id="s-model">—</dd>
+    <dt>Match threshold</dt><dd id="s-min">—</dd>
+  </dl>
+</section>
+
+<div class="scroll" id="scroll">
+  <div class="thread" id="thread">
+    <div id="banner"></div>
+    <div class="intro" id="intro">
+      <h2>Describe who you are looking for, in your own words.</h2>
+      <p>Every CV in the database is read for meaning, not keywords. A candidate
+         who wrote “settlement reconciliation service” comes back for a payments
+         brief, even though the word payments never appears in their CV.</p>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+</div>
+
+<div id="tray">
+  <span class="n" id="trayn"></span>
+  <button type="button" id="copy">Copy list</button>
+  <button type="button" id="csv">Download CSV</button>
+  <button type="button" class="clear" id="clear">Clear</button>
+</div>
+
+<div class="dock">
   <form id="f">
-    <textarea id="brief" required minlength="3"
-      placeholder="Describe the role the way you would to a colleague.&#10;&#10;Not &quot;payments API Gulf&quot; — the search compares meaning, so a full sentence gives it more to work with."></textarea>
-    <div class="controls">
-      <label>candidates <input type="number" id="k" value="5" min="1" max="20"></label>
-      <label><input type="checkbox" id="explain" checked> explain with Claude</label>
+    <div class="field">
+      <textarea id="brief" rows="1" required minlength="3"
+        placeholder="Describe the role the way you would to a colleague"></textarea>
       <button id="go" type="submit">Search</button>
     </div>
-    <div class="examples" id="examples"></div>
+    <div class="opts">
+      <label>Show <input type="number" id="k" value="5" min="1" max="20"> candidates</label>
+      <label><input type="checkbox" id="explain" checked> Explain the ranking</label>
+      <span class="hint">Enter to search, Shift+Enter for a new line</span>
+    </div>
   </form>
-
-  <div id="out"></div>
-
-  <footer>
-    Retrieval is free and instant. Unticking <em>explain</em> skips the Claude call.
-    Scores are cosine similarity; below <span id="minscore">0.35</span> the best match
-    is not really a match.
-  </footer>
-</main>
+</div>
 
 <script>
 // Briefs that show what the thing is for. The first is the one the eval is built
@@ -173,50 +363,90 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 let MIN_SCORE = 0.35;
+const shortlist = new Map();   // candidate_id -> {name, id, section, score, brief}
+
+/* ---- example chips ---------------------------------------------------- */
 
 EXAMPLES.forEach(text => {
   const b = document.createElement("button");
   b.type = "button";
-  b.textContent = text.length > 46 ? text.slice(0, 44) + "…" : text;
-  b.title = text;
-  b.onclick = () => { $("brief").value = text; $("brief").focus(); };
-  $("examples").appendChild(b);
+  b.textContent = text;
+  b.onclick = () => { $("brief").value = text; $("brief").focus(); grow(); };
+  $("chips").appendChild(b);
 });
 
-// Health first. "0 chunks indexed" is the single most likely reason a search
-// comes back empty, and finding that out before typing a brief beats finding it
-// out after.
+/* ---- health ----------------------------------------------------------- */
+// Checked before a brief is typed, because "nothing is indexed" is the single
+// most likely reason a search comes back empty, and finding that out first beats
+// finding it out after.
+
+$("systoggle").onclick = () => {
+  const open = $("sys").classList.toggle("open");
+  $("systoggle").setAttribute("aria-expanded", String(open));
+};
+
 fetch("health").then(r => r.json()).then(h => {
   MIN_SCORE = h.min_score ?? MIN_SCORE;
-  $("minscore").textContent = MIN_SCORE;
-  // Name the collection in the header. Two instances of this page can differ
-  // only by which collection they read -- and one of them may hold real people.
-  const col = h.collection ? ` &middot; collection <code>${esc(h.collection)}</code>` : "";
-  $("status").innerHTML = h.chunks
-    ? `${h.chunks} chunks indexed${col} &middot; ranking by <code>${esc(h.model)}</code>`
-    : `<strong>Nothing is indexed.</strong> Run <code>python indexer.py --corpus &lt;dir&gt;</code> first.`;
-  // A demo corpus should not be mistakable for the live one at a glance.
+  $("s-chunks").textContent = `${h.chunks} sections`;
+  $("s-collection").textContent = h.collection || "—";
+  $("s-model").textContent = h.model || "—";
+  $("s-min").textContent = MIN_SCORE;
+
+  if (h.chunks) {
+    $("dot").className = "dot live";
+    $("state").textContent = "Ready";
+  } else {
+    $("dot").className = "dot down";
+    $("state").textContent = "Empty index";
+    $("banner").innerHTML = `<div class="banner"><b>No CVs are indexed yet.</b>
+      Run the indexer against a CV folder before searching.</div>`;
+  }
+
+  // A demo corpus must not be mistakable for the live one at a glance.
   if (/demo|test|sample/i.test(h.collection || "")) {
-    document.title = "CV Semantic Search (demo)";
-    $("status").insertAdjacentHTML("afterend",
-      `<p class="note warn" style="margin:-1rem 0 1.5rem">
-         <strong>Demo corpus.</strong> Synthetic candidates, generated by
-         <code>corpus/generate.py</code>. Not real people.
-       </p>`);
+    document.title = "CV Search — demo data";
+    $("banner").insertAdjacentHTML("beforeend", `<div class="banner">
+      <b>Demo data.</b> These candidates are generated, not real people.
+      The search itself is the real system.</div>`);
   }
 }).catch(() => {
-  $("status").textContent = "cannot reach the API — is cv-search running?";
+  $("dot").className = "dot down";
+  $("state").textContent = "Offline";
+  $("banner").innerHTML = `<div class="banner"><b>Cannot reach the search service.</b>
+    Check that it is running, then reload this page.</div>`;
 });
+
+/* ---- composer --------------------------------------------------------- */
+
+function grow() {
+  const t = $("brief");
+  t.style.height = "auto";
+  t.style.height = Math.min(t.scrollHeight, 128) + "px";
+}
+$("brief").addEventListener("input", grow);
+$("brief").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("f").requestSubmit(); }
+});
+
+const bottom = () => $("scroll").scrollTo({ top: $("scroll").scrollHeight, behavior: "smooth" });
 
 $("f").onsubmit = async e => {
   e.preventDefault();
   const brief = $("brief").value.trim();
   if (brief.length < 3) return;
 
+  $("intro")?.remove();
+  $("brief").value = ""; grow();
   $("go").disabled = true;
-  $("go").textContent = $("explain").checked ? "Ranking…" : "Searching…";
-  $("out").innerHTML = '<p class="note">searching…</p>';
 
+  const turn = document.createElement("section");
+  turn.className = "turn rise";
+  turn.innerHTML = `<div class="asked">${esc(brief)}</div>
+    <div class="thinking"><span></span> reading the CV database</div>`;
+  $("thread").appendChild(turn);
+  bottom();
+
+  const t0 = performance.now();
   try {
     const res = await fetch("search", {
       method: "POST",
@@ -225,23 +455,24 @@ $("f").onsubmit = async e => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || res.statusText);
-    render(data);
+    render(turn, data, brief, (performance.now() - t0) / 1000);
   } catch (err) {
-    $("out").innerHTML = `<p class="note warn">${esc(err.message)}</p>`;
+    turn.querySelector(".thinking").outerHTML =
+      `<p class="note flag"><b>That search did not complete.</b> ${esc(err.message)}</p>`;
   } finally {
     $("go").disabled = false;
-    $("go").textContent = "Search";
+    $("brief").focus();
+    bottom();
   }
 };
 
-// Just enough Markdown for what the ranking prompt actually produces: headings,
-// bold, bullets, paragraphs. Not a general parser -- a general parser here would
-// be more code than the rest of the page and would still need the same escaping.
-//
-// esc() runs FIRST and everything after it operates on already-escaped text, so
-// no markup in the model's output can become live HTML. The model is grounded on
-// CV text, which is uploaded by other people; treating its output as untrusted
-// costs one line of ordering discipline.
+/* ---- markdown --------------------------------------------------------- */
+// Just enough for what the ranking prompt actually produces: headings, bold,
+// bullets, paragraphs. esc() runs FIRST and everything after operates on
+// already-escaped text, so no markup in the model's output can become live HTML.
+// The model is grounded on CV text uploaded by other people; treating its output
+// as untrusted costs one line of ordering discipline.
+
 function md(src) {
   const inline = t => esc(t)
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -251,17 +482,14 @@ function md(src) {
 
   const out = [];
   let list = null;
-
   const closeList = () => { if (list) { out.push(`<ul>${list.join("")}</ul>`); list = null; } };
 
   for (const raw of src.split("\n")) {
     const line = raw.trim();
     if (!line) { closeList(); continue; }
-
     const heading = line.match(/^#{1,6}\s+(.*)$/);
     const bullet = line.match(/^[-*+]\s+(.*)$/);
-
-    if (heading) { closeList(); out.push(`<h3>${inline(heading[1])}</h3>`); }
+    if (heading) { closeList(); out.push(`<h4>${inline(heading[1])}</h4>`); }
     else if (bullet) { (list ??= []).push(`<li>${inline(bullet[1])}</li>`); }
     else { closeList(); out.push(`<p>${inline(line)}</p>`); }
   }
@@ -269,41 +497,130 @@ function md(src) {
   return out.join("");
 }
 
-function render(d) {
+/* ---- rendering -------------------------------------------------------- */
+// Scores are cosine similarity. A recruiter cannot calibrate +0.413 against
+// +0.307, so the headline is a word and a bar and the number moves to Details.
+// 0.60 is the practical ceiling on this corpus, used only to scale the bar.
+
+function strengthOf(score) {
+  if (score >= MIN_SCORE + 0.05) return { word: "Strong match", low: false };
+  if (score >= MIN_SCORE)        return { word: "Good match",   low: false };
+  return { word: "Weak match", low: true };
+}
+
+function render(turn, d, brief, secs) {
   const parts = [];
 
   if (!d.matches || !d.matches.length) {
-    $("out").innerHTML = '<p class="note">No candidates indexed, so there is nothing to match.</p>';
+    turn.querySelector(".thinking").outerHTML =
+      `<p class="note">There are no CVs in the database yet, so there is nothing to match.</p>`;
     return;
   }
 
+  parts.push(`<p class="count">${d.matches.length} candidate${d.matches.length === 1 ? "" : "s"},
+    found in ${secs.toFixed(1)} seconds</p>`);
+
   // The `weak` flag exists so a caller does not have to infer "nobody fits" from
-  // prose. Honour it: say it plainly, above the list, before the names get read
-  // as a shortlist.
+  // prose. Say it plainly, above the list, before the names get read as a shortlist.
   if (d.weak) {
-    parts.push(`<p class="note warn"><strong>No strong match.</strong> The best score is
-      ${d.top_score.toFixed(3)}, below the ${MIN_SCORE} threshold — these are the nearest
-      people in the index, not people who fit the brief.</p>`);
+    parts.push(`<p class="note flag"><b>Nobody in the database really fits this brief.</b>
+      These are the closest people on file, shown so you can see what is there,
+      but none of them meets the bar.</p>`);
   }
 
-  parts.push("<ol class=\"hits\">" + d.matches.map((m, i) => `
-    <li>
-      <span class="rank">${i + 1}.</span>
-      <span class="name">${esc(m.name) || "<em>unnamed</em>"}</span>
-      <span class="score ${m.score >= MIN_SCORE ? "strong" : "weak"}">${m.score >= 0 ? "+" : ""}${m.score.toFixed(3)}</span>
-      <span class="meta">${esc(m.candidate_id)} &middot; matched on <span class="section">${esc(m.section)}</span></span>
-    </li>`).join("") + "</ol>");
+  parts.push('<ol class="people">' + d.matches.map(m => {
+    const s = strengthOf(m.score);
+    const fill = Math.max(4, Math.min(100, (m.score / 0.6) * 100));
+    const key = esc(m.candidate_id);
+    return `<li>
+      <div class="row">
+        <input class="pick" type="checkbox" data-id="${key}"
+               aria-label="Shortlist ${esc(m.name) || key}"
+               ${shortlist.has(m.candidate_id) ? "checked" : ""}>
+        <div class="who">
+          <h3>${esc(m.name) || "Name not on file"}</h3>
+          <div class="mail">${key}</div>
+          <div class="why">Closest passage: <em>${esc(m.section) || "unlabelled section"}</em></div>
+        </div>
+        <div class="strength">
+          <div class="word ${s.low ? "low" : ""}">${s.word}</div>
+          <div class="meter"><i class="${s.low ? "low" : ""}" style="width:${fill.toFixed(0)}%"></i></div>
+        </div>
+      </div>
+      <details>
+        <summary>Details</summary>
+        <div class="detail">Similarity ${m.score.toFixed(3)} against a
+          ${MIN_SCORE} threshold. Matched on the “${esc(m.section)}” section of this CV.</div>
+      </details>
+    </li>`;
+  }).join("") + "</ol>");
 
   // The API degrades to retrieval when ANTHROPIC_API_KEY is missing rather than
   // failing the request, so the error arrives alongside usable matches.
   if (d.error) {
-    parts.push(`<p class="note warn">Ranking unavailable: ${esc(d.error)}</p>`);
+    parts.push(`<p class="note flag"><b>The written ranking is unavailable.</b>
+      The candidate list above is still correct. ${esc(d.error)}</p>`);
   } else if (d.answer) {
-    parts.push(`<div class="answer"><h2>Ranked against the brief</h2>${md(d.answer)}</div>`);
+    parts.push(`<div class="answer"><h3>How they compare</h3>${md(d.answer)}</div>`);
   }
 
-  $("out").innerHTML = parts.join("");
+  turn.querySelector(".thinking").outerHTML = parts.join("");
+
+  turn.querySelectorAll(".pick").forEach((box, i) => {
+    box.onchange = () => {
+      const m = d.matches[i];
+      if (box.checked) shortlist.set(m.candidate_id, { ...m, brief });
+      else shortlist.delete(m.candidate_id);
+      syncTray();
+      // Keep duplicate cards for the same person in sync across turns.
+      document.querySelectorAll(`.pick[data-id="${CSS.escape(m.candidate_id)}"]`)
+        .forEach(other => { other.checked = box.checked; });
+    };
+  });
 }
+
+/* ---- shortlist -------------------------------------------------------- */
+
+function syncTray() {
+  const n = shortlist.size;
+  $("tray").classList.toggle("on", n > 0);
+  $("trayn").textContent = `${n} shortlisted`;
+}
+
+const rows = () => [...shortlist.values()];
+
+$("copy").onclick = async () => {
+  const text = rows().map(r => `${r.name || "Unnamed"} <${r.candidate_id}>`).join("\n");
+  try {
+    await navigator.clipboard.writeText(text);
+    $("copy").textContent = "Copied";
+    setTimeout(() => { $("copy").textContent = "Copy list"; }, 1600);
+  } catch {
+    $("copy").textContent = "Copy blocked";
+    setTimeout(() => { $("copy").textContent = "Copy list"; }, 1600);
+  }
+};
+
+$("csv").onclick = () => {
+  // Quote everything: names and briefs contain commas, and a CSV that breaks in
+  // Excel is worse than no CSV.
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const body = [["Name", "Email", "Matched section", "Similarity", "Brief"].map(q).join(",")]
+    .concat(rows().map(r => [r.name, r.candidate_id, r.section, r.score.toFixed(3), r.brief].map(q).join(",")))
+    .join("\r\n");
+  const url = URL.createObjectURL(new Blob(["\uFEFF" + body], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `shortlist-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+$("clear").onclick = () => {
+  shortlist.clear();
+  document.querySelectorAll(".pick").forEach(b => { b.checked = false; });
+  syncTray();
+};
 </script>
 </body>
 </html>
