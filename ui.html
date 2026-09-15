@@ -398,6 +398,7 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c =>
 
 let MIN_SCORE = 0.35;
 const shortlist = new Map();   // candidate_id -> {name, id, section, score, brief}
+const contactCache = new Map(); // candidate_id -> {phone, link}
 
 /* ---- example chips ---------------------------------------------------- */
 
@@ -625,19 +626,6 @@ function render(turn, d, brief, secs) {
 // all of them up front would move several times more text over the tunnel than
 // anyone is going to look at.
 
-// A chunk carries the heading line the chunker split on, and that line is
-// already the label above it. Drop the duplicate -- but only when it really is
-// the same line, so a section whose first line merely resembles its label keeps
-// its text intact.
-function withoutHeading(text, section) {
-  const lines = text.split("\n");
-  const first = (lines[0] || "").trim().replace(/[:–—-]+$/, "").trim();
-  if (first && first.toLowerCase() === (section || "").trim().toLowerCase()) {
-    return lines.slice(1).join("\n").replace(/^[\r\n]+/, "");
-  }
-  return text;
-}
-
 function wireCv(box) {
   box.addEventListener("toggle", async () => {
     if (!box.open || box.dataset.loaded) return;
@@ -658,7 +646,7 @@ function wireCv(box) {
         const isHit = sec.section === hit;
         return `<div class="sec${isHit ? " hit" : ""}">
           <h5>${esc(sec.section) || "Unlabelled"}${isHit ? " · matched" : ""}</h5>
-          <pre>${esc(withoutHeading(sec.text, sec.section))}</pre>
+          <pre>${esc(sec.text)}</pre>
         </div>`;
       }).join("") + `<p class="cvnote">Text extracted from
         ${esc(d.source) || "the uploaded CV"} when it was indexed — this is what the
@@ -693,19 +681,57 @@ $("copy").onclick = async () => {
   }
 };
 
-$("csv").onclick = () => {
-  // Quote everything: names and briefs contain commas, and a CSV that breaks in
-  // Excel is worse than no CSV.
-  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const body = [["Name", "Email", "Matched section", "Similarity", "Brief"].map(q).join(",")]
-    .concat(rows().map(r => [r.name, r.candidate_id, r.section, r.score.toFixed(3), r.brief].map(q).join(",")))
-    .join("\r\n");
-  const url = URL.createObjectURL(new Blob(["\uFEFF" + body], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `shortlist-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+// Search results carry no phone number and no link -- the API returns those per
+// candidate. Fetched here rather than with every result because a shortlist is a
+// handful of people and a result set is up to twenty.
+async function contactFor(id) {
+  if (contactCache.has(id)) return contactCache.get(id);
+  let info = { phone: "", link: "" };
+  try {
+    const res = await fetch(`candidate/${encodeURIComponent(id)}`);
+    if (res.ok) {
+      const d = await res.json();
+      info = {
+        phone: d.phone || "",
+        // The original document when the pipeline supplied one; otherwise the
+        // readable page this service can serve. Never a fabricated URL.
+        link: d.source_url || new URL(`cv/${encodeURIComponent(id)}`, location.href).href,
+      };
+    }
+  } catch { /* leave blank rather than guess */ }
+  contactCache.set(id, info);
+  return info;
+}
+
+$("csv").onclick = async () => {
+  const btn = $("csv");
+  btn.disabled = true;
+  btn.textContent = "Preparing\u2026";
+  try {
+    const list = rows();
+    const extra = await Promise.all(list.map(r => contactFor(r.candidate_id)));
+
+    // Quote everything: names and briefs contain commas, and a CSV that breaks
+    // in Excel is worse than no CSV.
+    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const head = ["Name", "Email", "Phone", "CV link", "Matched section", "Similarity", "Brief"];
+    const body = [head.map(q).join(",")]
+      .concat(list.map((r, i) => [
+        r.name, r.candidate_id, extra[i].phone, extra[i].link,
+        r.section, r.score.toFixed(3), r.brief,
+      ].map(q).join(",")))
+      .join("\r\n");
+
+    const url = URL.createObjectURL(new Blob(["\uFEFF" + body], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `shortlist-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Export shortlist (.csv)";
+  }
 };
 
 $("clear").onclick = () => {

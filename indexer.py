@@ -26,7 +26,8 @@ from store import get_collection
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 
 
-def index_cv(candidate_id: str, name: str, text: str, source: str = "") -> int:
+def index_cv(candidate_id: str, name: str, text: str, source: str = "",
+             source_url: str = "") -> int:
     """Index one CV. Returns the number of chunks written."""
     chunks = split_sections(text)
     if not chunks:
@@ -46,6 +47,8 @@ def index_cv(candidate_id: str, name: str, text: str, source: str = "") -> int:
             "name": name,
             "section": c.section,
             "source": source,
+            # Chroma rejects None in metadata, so an absent URL is "" not null.
+            "source_url": source_url or "",
         } for c in chunks],
     )
     _prune(col, candidate_id, len(chunks))

@@ -135,8 +135,9 @@ curl -X POST localhost:5680/search -H 'content-type: application/json' \
 |---|---|
 | `GET /` | The search page — a brief in, ranked candidates out |
 | `GET /health` | Liveness, plus how many chunks are actually indexed |
-| `GET /candidate/{id}` | Every indexed chunk for one candidate, in document order |
-| `POST /index` | `{candidate_id, name, text}` — what the n8n pipeline calls |
+| `GET /candidate/{id}` | One candidate: sections in order, plus phone recovered from the header |
+| `GET /cv/{id}` | The same CV as a readable page — what the shortlist export links to |
+| `POST /index` | `{candidate_id, name, text, source_url?}` — what the n8n pipeline calls |
 | `POST /search` | `{text, k, explain}` — `explain: false` skips the Claude call |
 
 ---

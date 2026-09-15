@@ -28,6 +28,7 @@ is not evidence of anything.
 Set API_HOST=127.0.0.1 in .env for local development.
 """
 
+import html
 import logging
 from pathlib import Path
 from typing import List, Optional
@@ -37,6 +38,8 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, field_validator
 
 import store
+from chunker import LABEL_CHARS
+from contact import phone_from
 from indexer import index_cv
 from search import MIN_SCORE, retrieve, search
 
@@ -67,6 +70,11 @@ class Candidate(BaseModel):
     name: str = ""
     text: str = Field(..., min_length=1, description="extracted CV text")
     source: str = ""
+    # Where the original document lives, if the caller knows. The pipeline has
+    # this -- a Drive node returns webViewLink alongside the file -- it just has
+    # not been sending it. Optional, because every CV already indexed predates
+    # this field and must keep working without one.
+    source_url: str = ""
 
     @field_validator("candidate_id")
     @classmethod
@@ -114,6 +122,86 @@ def health():
             "model": store.CLAUDE_MODEL, "min_score": MIN_SCORE}
 
 
+def _strip_heading(text: str, section: str) -> str:
+    """Drop a chunk's first line when it just repeats the section label.
+
+    The chunker splits on heading lines and keeps them, so every chunk begins
+    with its own title. Anything rendering the label above the text therefore
+    says it twice. Done here rather than in the page so the JSON and the HTML
+    view agree, and there is one copy of the rule.
+
+    Compared exactly, case- and punctuation-insensitively, so a section whose
+    first line merely resembles its label keeps its text.
+    """
+    lines = text.split("\n")
+    first = lines[0].strip().rstrip(":\u2013\u2014-").strip()
+    label = (section or "").strip()
+    # A label that hit the chunker's cap is a prefix of the line it came from,
+    # so exact comparison misses it. Relaxed to a prefix test only at exactly
+    # the cap -- a shorter label still has to match in full, which is what keeps
+    # "Skills" from eating a line beginning "Skills in distributed tracing...".
+    truncated = len(label) == LABEL_CHARS and first.casefold().startswith(label.casefold())
+    if first and (first.casefold() == label.casefold() or truncated):
+        return "\n".join(lines[1:]).lstrip("\r\n")
+    return text
+
+
+@app.get("/cv/{candidate_id}", response_class=HTMLResponse, include_in_schema=False)
+def cv_page(candidate_id: str):
+    """One candidate's CV as a readable page, so a link can point somewhere.
+
+    This is what the shortlist export links to when the pipeline has not supplied
+    a URL for the original document -- which today is every candidate. It is the
+    extracted text, and the page says so rather than letting a reader assume they
+    are looking at the file the candidate sent.
+
+    Worth being clear about what the link is worth: it resolves on whatever host
+    is serving this API, which for a recruiter means only while their SSH tunnel
+    is open. Mailing the spreadsheet to someone else does not carry the CV with
+    it. A real, shareable link needs source_url, and that has to come from the
+    pipeline.
+    """
+    data = candidate_detail(candidate_id)
+    esc = html.escape
+
+    blocks = "".join(
+        f"<section><h2>{esc(sec['section']) or 'Section'}</h2>"
+        f"<pre>{esc(sec['text'])}</pre></section>"
+        for sec in data["sections"]
+    )
+    phone = (f" &middot; <a href=\"tel:{esc(data['phone'].replace(' ', ''))}\">"
+             f"{esc(data['phone'])}</a>") if data["phone"] else ""
+    original = (f"<p class=\"orig\"><a href=\"{esc(data['source_url'])}\" "
+                f"rel=\"noopener noreferrer\" target=\"_blank\">Open the original document</a></p>"
+                ) if data["source_url"] else ""
+
+    return f"""<!doctype html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{esc(data['name']) or esc(candidate_id)} &mdash; CV</title>
+<style>
+  :root {{ color-scheme: light dark; }}
+  body {{ max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 4rem;
+         font: 15px/1.6 ui-sans-serif, system-ui, "Segoe UI", sans-serif; }}
+  h1 {{ font-family: ui-serif, Georgia, serif; font-size: 1.5rem; margin: 0 0 .2rem; }}
+  .meta {{ color: #6b6b66; font-size: .9rem; margin: 0 0 1.5rem; }}
+  .meta a {{ color: inherit; }}
+  h2 {{ font-size: .8rem; text-transform: uppercase; letter-spacing: .05em;
+       color: #6b6b66; margin: 1.6rem 0 .3rem; }}
+  pre {{ margin: 0; font: inherit; white-space: pre-wrap; word-wrap: break-word; }}
+  .orig {{ margin: 1.5rem 0 0; }}
+  footer {{ margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #ddd;
+           color: #6b6b66; font-size: .82rem; }}
+  @media print {{ footer, .orig {{ display: none }} }}
+</style>
+<h1>{esc(data['name']) or 'Name not on file'}</h1>
+<p class="meta"><a href="mailto:{esc(data['candidate_id'])}">{esc(data['candidate_id'])}</a>{phone}</p>
+{blocks}
+{original}
+<footer>Text extracted from {esc(data['source']) or 'the uploaded CV'} when it was
+indexed. This is what the search reads, not the original file.</footer>
+"""
+
+
 @app.get("/candidate/{candidate_id}")
 def candidate_detail(candidate_id: str):
     """Every indexed chunk for one candidate, reassembled in document order.
@@ -151,12 +239,22 @@ def candidate_detail(candidate_id: str):
     rows = sorted(zip(got["ids"], got["documents"], got["metadatas"]), key=order)
     first = rows[0][2]
 
+    sections = [{"section": m.get("section", ""),
+                 "text": _strip_heading(d, m.get("section", ""))}
+                for _, d, m in rows]
+
     return {
         "candidate_id": candidate_id,
         "name": first.get("name", ""),
         "source": first.get("source", ""),
+        # Recovered from the header chunk rather than stored, so it works on
+        # every CV already in the index. See contact.py for why it only ever
+        # looks at the header.
+        "phone": phone_from(rows[0][1] if rows else ""),
+        # Empty for anything indexed before the pipeline started sending it.
+        "source_url": first.get("source_url", ""),
         "extracted_text": True,
-        "sections": [{"section": m.get("section", ""), "text": d} for _, d, m in rows],
+        "sections": sections,
     }
 
 
@@ -169,7 +267,7 @@ def index(candidate: Candidate):
     """
     try:
         chunks = index_cv(candidate.candidate_id, candidate.name,
-                          candidate.text, candidate.source)
+                          candidate.text, candidate.source, candidate.source_url)
     except Exception as exc:
         raise HTTPException(500, f"indexing failed: {type(exc).__name__}: {exc}")
     if chunks == 0:

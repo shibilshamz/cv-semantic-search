@@ -34,6 +34,11 @@ class Chunk(NamedTuple):
 
 MIN_CHUNK_CHARS = 60
 
+# A section label is the block's first line, capped. Named because api.py has
+# to recognise a label that hit the cap: a truncated label no longer equals the
+# line it came from, and the two must not drift apart.
+LABEL_CHARS = 60
+
 # Heading vocabulary. CVs are not consistent about these -- "Employment History",
 # "Career Summary" and "Technical Competencies" all show up in the wild -- so the
 # list is broad rather than canonical.
@@ -90,7 +95,7 @@ def _label(block: str, fallback: str) -> str:
     for line in block.split("\n"):
         line = line.strip(" \t:-–—")
         if line:
-            return line[:60]
+            return line[:LABEL_CHARS]
     return fallback
 
 
