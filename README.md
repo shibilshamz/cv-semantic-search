@@ -135,6 +135,7 @@ curl -X POST localhost:5680/search -H 'content-type: application/json' \
 |---|---|
 | `GET /` | The search page — a brief in, ranked candidates out |
 | `GET /health` | Liveness, plus how many chunks are actually indexed |
+| `GET /candidate/{id}` | Every indexed chunk for one candidate, in document order |
 | `POST /index` | `{candidate_id, name, text}` — what the n8n pipeline calls |
 | `POST /search` | `{text, k, explain}` — `explain: false` skips the Claude call |
 

@@ -114,6 +114,52 @@ def health():
             "model": store.CLAUDE_MODEL, "min_score": MIN_SCORE}
 
 
+@app.get("/candidate/{candidate_id}")
+def candidate_detail(candidate_id: str):
+    """Every indexed chunk for one candidate, reassembled in document order.
+
+    The search result gives a recruiter a name, a score and the single section
+    that matched. That is enough to rank people and not enough to decide about
+    one, so this returns the CV behind the match.
+
+    It is the *extracted text*, not the original file. For a real candidate the
+    PDF goes to the pipeline's Drive folder and never reaches this service --
+    only the text does. Saying so in the payload beats letting a caller assume
+    it is holding the document the candidate actually sent.
+
+    Chunks are ordered by the integer suffix of their id, not by the order
+    Chroma returns them in, which is unspecified. Sorting the raw id strings
+    would put ':10' before ':2'.
+    """
+    candidate_id = candidate_id.strip().lower()
+    try:
+        got = store.get_collection().get(
+            where={"candidate_id": candidate_id},
+            include=["documents", "metadatas"],
+        )
+    except Exception as exc:
+        raise HTTPException(503, f"vector store unreachable: {type(exc).__name__}")
+
+    if not got.get("ids"):
+        raise HTTPException(404, "no such candidate in this index")
+
+    def order(item):
+        chunk_id = item[0]
+        tail = chunk_id.rsplit(":", 1)[-1]
+        return int(tail) if tail.isdigit() else 0
+
+    rows = sorted(zip(got["ids"], got["documents"], got["metadatas"]), key=order)
+    first = rows[0][2]
+
+    return {
+        "candidate_id": candidate_id,
+        "name": first.get("name", ""),
+        "source": first.get("source", ""),
+        "extracted_text": True,
+        "sections": [{"section": m.get("section", ""), "text": d} for _, d, m in rows],
+    }
+
+
 @app.post("/index")
 def index(candidate: Candidate):
     """Index one CV. This is what the n8n pipeline calls after extraction.

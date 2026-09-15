@@ -232,6 +232,37 @@
 
   /* ---- shortlist ------------------------------------------------------ */
 
+  /* ---- CV viewer ------------------------------------------------------ */
+
+  .cv { margin-top: .6rem; border-top: 1px solid var(--rule); padding-top: .6rem; }
+  .cv > summary {
+    cursor: pointer; font-size: .85rem; color: var(--accent);
+    list-style: none; display: inline-flex; align-items: center; gap: .3rem;
+  }
+  .cv > summary::-webkit-details-marker { display: none; }
+  .cv > summary::before {
+    content: ""; width: 0; height: 0;
+    border: .3rem solid transparent; border-left-color: currentColor;
+    margin-right: .15rem; transition: transform .15s;
+  }
+  .cv[open] > summary::before { transform: rotate(90deg) translateX(-.05rem); }
+  .cvbody { margin-top: .7rem; font-size: .88rem; }
+  .cvbody .sec { margin-bottom: .9rem; }
+  .cvbody .sec:last-child { margin-bottom: 0; }
+  .cvbody h5 {
+    margin: 0 0 .2rem; font-size: .82rem; font-weight: 650;
+    text-transform: uppercase; letter-spacing: .04em; color: var(--slate);
+  }
+  /* The section the search actually matched on. Showing the whole CV without
+     marking that would hide the one thing the recruiter came here to check. */
+  .cvbody .sec.hit { border-left: 2px solid var(--accent); padding-left: .7rem; margin-left: -.7rem; }
+  .cvbody .sec.hit h5 { color: var(--accent); }
+  .cvbody pre {
+    margin: 0; font: inherit; white-space: pre-wrap; word-wrap: break-word;
+    color: var(--ink);
+  }
+  .cvnote { margin-top: .8rem; font-size: .78rem; color: var(--slate); }
+
   #tray {
     display: none; align-items: center; gap: .75rem; flex-wrap: wrap;
     max-width: 46rem; margin: 0 auto; padding: .6rem 1.25rem;
@@ -328,8 +359,11 @@
 
 <div id="tray">
   <span class="n" id="trayn"></span>
-  <button type="button" id="copy">Copy list</button>
-  <button type="button" id="csv">Download CSV</button>
+  <button type="button" id="copy">Copy names</button>
+  <!-- Not "Download CSV". Next to a list of candidates, in a product about CVs,
+       that reads as "download this person's CV" -- CSV and CV are one letter
+       apart. This button exports the shortlist; the CV itself is on the card. -->
+  <button type="button" id="csv">Export shortlist (.csv)</button>
   <button type="button" class="clear" id="clear">Clear</button>
 </div>
 
@@ -552,6 +586,10 @@ function render(turn, d, brief, secs) {
         <div class="detail">Similarity ${m.score.toFixed(3)} against a
           ${MIN_SCORE} threshold. Matched on the “${esc(m.section)}” section of this CV.</div>
       </details>
+      <details class="cv" data-cv="${key}" data-hit="${esc(m.section)}">
+        <summary>View CV</summary>
+        <div class="cvbody">loading…</div>
+      </details>
     </li>`;
   }).join("") + "</ol>");
 
@@ -566,6 +604,8 @@ function render(turn, d, brief, secs) {
 
   turn.querySelector(".thinking").outerHTML = parts.join("");
 
+  turn.querySelectorAll(".cv").forEach(wireCv);
+
   turn.querySelectorAll(".pick").forEach((box, i) => {
     box.onchange = () => {
       const m = d.matches[i];
@@ -579,12 +619,64 @@ function render(turn, d, brief, secs) {
   });
 }
 
+/* ---- CV viewer -------------------------------------------------------- */
+// Fetched on first open rather than with the search results: a brief returns up
+// to 20 candidates and a recruiter reads one or two of them in full. Fetching
+// all of them up front would move several times more text over the tunnel than
+// anyone is going to look at.
+
+// A chunk carries the heading line the chunker split on, and that line is
+// already the label above it. Drop the duplicate -- but only when it really is
+// the same line, so a section whose first line merely resembles its label keeps
+// its text intact.
+function withoutHeading(text, section) {
+  const lines = text.split("\n");
+  const first = (lines[0] || "").trim().replace(/[:–—-]+$/, "").trim();
+  if (first && first.toLowerCase() === (section || "").trim().toLowerCase()) {
+    return lines.slice(1).join("\n").replace(/^[\r\n]+/, "");
+  }
+  return text;
+}
+
+function wireCv(box) {
+  box.addEventListener("toggle", async () => {
+    if (!box.open || box.dataset.loaded) return;
+    box.dataset.loaded = "1";
+
+    const body = box.querySelector(".cvbody");
+    const id = box.dataset.cv;
+    const hit = box.dataset.hit;
+
+    try {
+      // encodeURIComponent because a candidate_id is an email: "+" in a path
+      // is not a space, but a raw one still has no business being unescaped.
+      const res = await fetch(`candidate/${encodeURIComponent(id)}`);
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.detail || res.statusText);
+
+      body.innerHTML = d.sections.map(sec => {
+        const isHit = sec.section === hit;
+        return `<div class="sec${isHit ? " hit" : ""}">
+          <h5>${esc(sec.section) || "Unlabelled"}${isHit ? " · matched" : ""}</h5>
+          <pre>${esc(withoutHeading(sec.text, sec.section))}</pre>
+        </div>`;
+      }).join("") + `<p class="cvnote">Text extracted from
+        ${esc(d.source) || "the uploaded CV"} when it was indexed — this is what the
+        search reads, not the original file.</p>`;
+    } catch (err) {
+      body.innerHTML = `<p class="cvnote">Could not load this CV. ${esc(err.message)}</p>`;
+      box.dataset.loaded = "";   // let a retry happen on the next open
+    }
+  });
+}
+
 /* ---- shortlist -------------------------------------------------------- */
 
 function syncTray() {
   const n = shortlist.size;
   $("tray").classList.toggle("on", n > 0);
-  $("trayn").textContent = `${n} shortlisted`;
+  $("trayn").textContent = n === 1 ? "1 candidate shortlisted"
+                                   : `${n} candidates shortlisted`;
 }
 
 const rows = () => [...shortlist.values()];
@@ -594,10 +686,10 @@ $("copy").onclick = async () => {
   try {
     await navigator.clipboard.writeText(text);
     $("copy").textContent = "Copied";
-    setTimeout(() => { $("copy").textContent = "Copy list"; }, 1600);
+    setTimeout(() => { $("copy").textContent = "Copy names"; }, 1600);
   } catch {
     $("copy").textContent = "Copy blocked";
-    setTimeout(() => { $("copy").textContent = "Copy list"; }, 1600);
+    setTimeout(() => { $("copy").textContent = "Copy names"; }, 1600);
   }
 };
 
