@@ -40,6 +40,27 @@
     --flag-bg:    #fdf4ec;
     --flag-rule:  #ecd5bd;
     --shadow:     0 1px 2px rgba(22, 32, 43, .05);
+
+    /* Type. Four sizes, not seventeen.
+       The page had 17 declared font-sizes and eleven of them sat inside a
+       0.15rem band -- 12.5px to 14.9px -- doing genuinely different jobs:
+       candidate email, match strength, CV body, buttons, system panel. At that
+       spacing the eye reads them as one size, so nothing could look more
+       important than anything else and size had stopped carrying information.
+       Steps here are 1.4 / 1.25 / 1.23, which are visible; weight and colour do
+       the rest rather than leaving size to do it alone. */
+    --t-display:  1.75rem;    /* the opening question, one element, once */
+    --t-title:    1.25rem;    /* candidate names */
+    --t-body:     1rem;       /* prose, CV text, the brief -- 16px floor */
+    --t-meta:     .8125rem;   /* email, matched section, counts, controls */
+
+    /* One serif declaration. There were three, with different fallback lists,
+       for a single role. */
+    --font-serif: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    /* Roboto dropped: system-ui already resolves to it on Android, so the
+       entry was redundant, and naming it made the stack read as a Roboto
+       design when no machine here ever resolves past the first two. */
+    --font-sans:  ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -65,7 +86,11 @@
     margin: 0;
     background: var(--paper);
     color: var(--ink);
-    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    /* 16px, not 15. Every rem on this page resolves against it, and an input
+       below 16px makes iOS Safari zoom the page on focus and never zoom back. */
+    font-family: var(--font-sans);
+    font-size: var(--t-body);
+    line-height: 1.55;
     display: flex;
     flex-direction: column;
   }
@@ -80,19 +105,19 @@
   }
   .bar h1 {
     margin: 0;
-    font-family: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
-    font-size: 1.15rem; font-weight: 600; letter-spacing: -.01em;
+    font-family: var(--font-serif);
+    font-size: var(--t-body); font-weight: 600; letter-spacing: -.01em;
   }
   .pulse {
     margin-left: auto; display: flex; align-items: center; gap: .45rem;
-    font-size: .82rem; color: var(--slate);
+    font-size: var(--t-meta); color: var(--slate);
   }
   .dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--slate); }
   .dot.live { background: var(--accent); }
   .dot.down { background: var(--flag); }
 
   .sysbtn {
-    padding: .3rem .65rem; font: inherit; font-size: .8rem;
+    padding: .3rem .65rem; font: inherit; font-size: var(--t-meta);
     color: var(--slate); background: transparent;
     border: 1px solid var(--rule); border-radius: 6px; cursor: pointer;
   }
@@ -102,7 +127,7 @@
     display: none; padding: .7rem 1.25rem;
     border-bottom: 1px solid var(--rule);
     background: var(--card);
-    font-size: .8rem; color: var(--slate);
+    font-size: var(--t-meta); color: var(--slate);
   }
   #sys.open { display: block; }
   #sys dl { display: grid; grid-template-columns: auto 1fr; gap: .2rem 1rem; margin: 0; }
@@ -117,24 +142,24 @@
   .banner {
     padding: .75rem .9rem; margin-bottom: 1.5rem;
     border: 1px solid var(--flag-rule); border-radius: 8px;
-    background: var(--flag-bg); color: var(--flag); font-size: .86rem;
+    background: var(--flag-bg); color: var(--flag); font-size: var(--t-meta);
   }
-  .banner b { font-weight: 650; }
+  .banner b { font-weight: 600; }
 
   .intro {
     display: flex; flex-direction: column; justify-content: center;
     min-height: 58vh; padding: 1rem 0;
   }
   .intro h2 {
-    font-family: ui-serif, Georgia, "Iowan Old Style", serif;
-    font-size: 1.5rem; font-weight: 500; line-height: 1.3;
+    font-family: var(--font-serif);
+    font-size: var(--t-display); font-weight: 500; line-height: 1.3;
     margin: 0 0 .6rem; letter-spacing: -.015em; max-width: 30ch;
   }
   .intro p { margin: 0 0 1.2rem; color: var(--slate); max-width: 52ch; }
 
   .chips { display: flex; flex-wrap: wrap; gap: .45rem; }
   .chips button {
-    padding: .4rem .8rem; font: inherit; font-size: .84rem; text-align: left;
+    padding: .4rem .8rem; font: inherit; font-size: var(--t-meta); text-align: left;
     color: var(--ink); background: var(--card);
     border: 1px solid var(--rule); border-radius: 999px; cursor: pointer;
   }
@@ -144,9 +169,9 @@
   .asked {
     max-width: 32rem; margin: 0 0 1.1rem auto; padding: .6rem .9rem;
     background: var(--accent-bg); border-radius: 12px 12px 3px 12px;
-    font-size: .95rem;
+    font-size: var(--t-body);
   }
-  .count { margin: 0 0 .6rem; font-size: .83rem; color: var(--slate); }
+  .count { margin: 0 0 .6rem; font-size: var(--t-meta); color: var(--slate); }
 
   /* ---- candidate cards ----------------------------------------------- */
 
@@ -163,17 +188,17 @@
   }
   .who { flex: 1; min-width: 0; }
   .who h3 {
-    font-family: ui-serif, Georgia, "Iowan Old Style", serif;
-    font-size: 1.12rem; font-weight: 600; letter-spacing: -.01em;
+    font-family: var(--font-serif);
+    font-size: var(--t-title); font-weight: 600; letter-spacing: -.01em;
     margin: 0 0 .12rem; line-height: 1.25;
   }
-  .mail { font-size: .84rem; color: var(--slate); word-break: break-all; }
-  .why { margin-top: .35rem; font-size: .85rem; color: var(--slate); }
+  .mail { font-size: var(--t-meta); color: var(--slate); word-break: break-all; }
+  .why { margin-top: .35rem; font-size: var(--t-meta); color: var(--slate); }
   .why em { font-style: normal; color: var(--ink); }
 
   .strength { flex: none; width: 6.5rem; text-align: right; }
-  .strength .word { font-size: .8rem; font-weight: 600; color: var(--accent); }
-  .strength .word.low { color: var(--slate); font-weight: 500; }
+  .strength .word { font-size: var(--t-meta); font-weight: 600; color: var(--accent); }
+  .strength .word.low { color: var(--slate); font-weight: 400; }
   .meter {
     height: 3px; margin-top: .4rem; border-radius: 2px;
     background: var(--rule); overflow: hidden;
@@ -184,11 +209,11 @@
   .detail {
     margin-top: .6rem; padding-top: .55rem;
     border-top: 1px dashed var(--rule);
-    font-size: .8rem; color: var(--slate);
+    font-size: var(--t-meta); color: var(--slate);
     font-variant-numeric: tabular-nums;
   }
   details > summary {
-    margin: .5rem 0 0 1.8rem; font-size: .78rem; color: var(--slate);
+    margin: .5rem 0 0 1.8rem; font-size: var(--t-meta); color: var(--slate);
     cursor: pointer; list-style: none; width: fit-content;
   }
   details > summary::-webkit-details-marker { display: none; }
@@ -199,31 +224,31 @@
   .answer {
     background: var(--card); border: 1px solid var(--rule);
     border-left: 2px solid var(--accent);
-    border-radius: 4px 10px 10px 4px; padding: 1rem 1.15rem; font-size: .93rem;
+    border-radius: 4px 10px 10px 4px; padding: 1rem 1.15rem; font-size: var(--t-body);
   }
   .answer > h3 {
-    font-family: ui-serif, Georgia, serif;
-    font-size: 1rem; font-weight: 600; margin: 0 0 .75rem;
+    font-family: var(--font-serif);
+    font-size: var(--t-body); font-weight: 600; margin: 0 0 .75rem;
   }
-  .answer h4 { font-size: .93rem; margin: 1.1rem 0 .35rem; font-weight: 650; }
+  .answer h4 { font-size: var(--t-body); margin: 1.1rem 0 .35rem; font-weight: 600; }
   .answer p { margin: 0 0 .7rem; max-width: 68ch; }
   .answer p:last-child, .answer ul:last-child { margin-bottom: 0; }
   .answer ul { margin: 0 0 .7rem; padding-left: 1.15rem; }
   .answer li { margin-bottom: .35rem; }
   /* Claude cites [candidate_id] behind every claim. Dimming keeps the citation
      visible as evidence without letting repeated emails dominate the prose. */
-  .answer .cite { font-size: .82em; color: var(--slate); }
+  .answer .cite { font-size: .85em; color: var(--slate); }
 
   .note {
-    padding: .7rem .9rem; border-radius: 8px; font-size: .87rem;
+    padding: .7rem .9rem; border-radius: 8px; font-size: var(--t-meta);
     border: 1px solid var(--rule); background: var(--card); color: var(--slate);
   }
   .note.flag {
     background: var(--flag-bg); border-color: var(--flag-rule); color: var(--flag);
   }
-  .note.flag b { font-weight: 650; }
+  .note.flag b { font-weight: 600; }
 
-  .thinking { display: flex; align-items: center; gap: .5rem; color: var(--slate); font-size: .9rem; }
+  .thinking { display: flex; align-items: center; gap: .5rem; color: var(--slate); font-size: var(--t-meta); }
   .thinking span {
     width: .4rem; height: .4rem; border-radius: 50%; background: var(--slate);
     animation: blink 1.2s infinite;
@@ -236,7 +261,7 @@
 
   .cv { margin-top: .6rem; border-top: 1px solid var(--rule); padding-top: .6rem; }
   .cv > summary {
-    cursor: pointer; font-size: .85rem; color: var(--accent);
+    cursor: pointer; font-size: var(--t-meta); color: var(--accent);
     list-style: none; display: inline-flex; align-items: center; gap: .3rem;
   }
   .cv > summary::-webkit-details-marker { display: none; }
@@ -246,11 +271,11 @@
     margin-right: .15rem; transition: transform .15s;
   }
   .cv[open] > summary::before { transform: rotate(90deg) translateX(-.05rem); }
-  .cvbody { margin-top: .7rem; font-size: .88rem; }
+  .cvbody { margin-top: .7rem; font-size: var(--t-body); }
   .cvbody .sec { margin-bottom: .9rem; }
   .cvbody .sec:last-child { margin-bottom: 0; }
   .cvbody h5 {
-    margin: 0 0 .2rem; font-size: .82rem; font-weight: 650;
+    margin: 0 0 .2rem; font-size: var(--t-meta); font-weight: 600;
     text-transform: uppercase; letter-spacing: .04em; color: var(--slate);
   }
   /* The section the search actually matched on. Showing the whole CV without
@@ -261,16 +286,16 @@
     margin: 0; font: inherit; white-space: pre-wrap; word-wrap: break-word;
     color: var(--ink);
   }
-  .cvnote { margin-top: .8rem; font-size: .78rem; color: var(--slate); }
+  .cvnote { margin-top: .8rem; font-size: var(--t-meta); color: var(--slate); }
 
   #tray {
     display: none; align-items: center; gap: .75rem; flex-wrap: wrap;
     max-width: 46rem; margin: 0 auto; padding: .6rem 1.25rem;
   }
   #tray.on { display: flex; }
-  #tray .n { font-size: .87rem; }
+  #tray .n { font-size: var(--t-meta); }
   #tray button {
-    padding: .35rem .8rem; font: inherit; font-size: .84rem;
+    padding: .35rem .8rem; font: inherit; font-size: var(--t-meta);
     color: var(--ink); background: var(--card);
     border: 1px solid var(--rule); border-radius: 6px; cursor: pointer;
   }
@@ -302,7 +327,7 @@
 
   .opts {
     display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-    margin-top: .55rem; font-size: .8rem; color: var(--slate);
+    margin-top: .55rem; font-size: var(--t-meta); color: var(--slate);
   }
   .opts label { display: flex; align-items: center; gap: .4rem; }
   .opts input[type=number] {
