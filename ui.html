@@ -397,6 +397,7 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 let MIN_SCORE = 0.35;
+let SYNTHETIC = false;   // set from /health; gates every "not real people" marker
 const shortlist = new Map();   // candidate_id -> {name, id, section, score, brief}
 const contactCache = new Map(); // candidate_id -> {phone, link}
 
@@ -438,7 +439,14 @@ fetch("health").then(r => r.json()).then(h => {
   }
 
   // A demo corpus must not be mistakable for the live one at a glance.
-  if (/demo|test|sample/i.test(h.collection || "")) {
+  //
+  // This used to test the collection NAME, which meant the local dev corpus --
+  // named "cvs" -- served forty invented people, with phone numbers and visa
+  // status, wearing no warning. The flag now comes from the rows themselves, so
+  // it survives a rename. The name test stays only as a fallback for an
+  // instance indexed before the field existed.
+  SYNTHETIC = h.synthetic === true || /demo|test|sample/i.test(h.collection || "");
+  if (SYNTHETIC) {
     document.title = "CV Search — demo data";
     $("banner").insertAdjacentHTML("beforeend", `<div class="banner">
       <b>Demo data.</b> These candidates are generated, not real people.
@@ -670,7 +678,10 @@ function syncTray() {
 const rows = () => [...shortlist.values()];
 
 $("copy").onclick = async () => {
-  const text = rows().map(r => `${r.name || "Unnamed"} <${r.candidate_id}>`).join("\n");
+  const names = rows().map(r => `${r.name || "Unnamed"} <${r.candidate_id}>`).join("\n");
+  const text = SYNTHETIC
+    ? `[DEMO DATA — these are generated people, not real candidates]\n${names}`
+    : names;
   try {
     await navigator.clipboard.writeText(text);
     $("copy").textContent = "Copied";
@@ -714,18 +725,28 @@ $("csv").onclick = async () => {
     // Quote everything: names and briefs contain commas, and a CSV that breaks
     // in Excel is worse than no CSV.
     const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    // A banner on screen does not survive a download. The spreadsheet is the
+    // artefact that gets mailed to a colleague and turns into an email to a
+    // person, so the marker travels in the file: a first column on every row,
+    // and the word DEMO in the filename.
     const head = ["Name", "Email", "Phone", "CV link", "Matched section", "Similarity", "Brief"];
+    if (SYNTHETIC) head.unshift("Data");
     const body = [head.map(q).join(",")]
-      .concat(list.map((r, i) => [
-        r.name, r.candidate_id, extra[i].phone, extra[i].link,
-        r.section, r.score.toFixed(3), r.brief,
-      ].map(q).join(",")))
+      .concat(list.map((r, i) => {
+        const row = [
+          r.name, r.candidate_id, extra[i].phone, extra[i].link,
+          r.section, r.score.toFixed(3), r.brief,
+        ];
+        if (SYNTHETIC) row.unshift("GENERATED — not a real person");
+        return row.map(q).join(",");
+      }))
       .join("\r\n");
 
     const url = URL.createObjectURL(new Blob(["\uFEFF" + body], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `shortlist-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = (SYNTHETIC ? "DEMO-" : "")
+      + `shortlist-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   } finally {

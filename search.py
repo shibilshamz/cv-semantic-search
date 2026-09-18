@@ -12,7 +12,7 @@ cent and takes about a second.
 """
 
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from embedder import get_embedder
 from store import CLAUDE_MODEL, get_collection, similarity
@@ -24,19 +24,28 @@ from store import CLAUDE_MODEL, get_collection, similarity
 # real person who is about to be put in front of a client. Everything else here
 # is plumbing; this is the part that makes the output safe to act on.
 SYSTEM = (
-    "You rank candidates against a job brief. Use ONLY the excerpts provided. "
-    "Cite the [candidate_id] behind every claim. If an excerpt does not support "
-    "a requirement, say so explicitly. Never infer experience that is not "
-    "written down. If none of the candidates is a good fit, say that plainly "
+    "You rank candidates against a job brief. Use ONLY the CV text provided. "
+    "Cite the [candidate_id] behind every claim. Never infer experience that is "
+    "not written down. If none of the candidates is a good fit, say that plainly "
     "rather than ranking weak matches as though they were strong.\n\n"
+    # Saying a CV lacks something is a claim like any other, and has to be
+    # checked like one. The ranker used to see a single section per candidate
+    # and reported what that section lacked as what the CV lacked -- describing
+    # the one qualified nurse in the index as missing ventilator experience her
+    # CV states outright. It now receives every section, so this can be strict.
+    "Before writing that a candidate lacks a requirement, read every section of "
+    "their CV above. Only then may you call it missing, and say it as \"not "
+    "stated in the CV text provided\". If any section mentions it, the "
+    "requirement is met: say so and quote the words. Never report something as "
+    "absent because the matched section alone did not mention it.\n\n"
     # Added after an early run inferred a candidate's location from their name
     # ("Name and context suggest Gulf region"). In a hiring tool that is both a
     # grounding failure and a discrimination risk, so it is called out by name
     # rather than left to the general instruction above.
     "Never infer nationality, location, ethnicity, gender, age or religion from "
     "a candidate's name. If the brief asks about location, residency or work "
-    "authorisation and the excerpts do not state it, answer \"not stated in the "
-    "CV\" and treat the requirement as unmet."
+    "authorisation and no section states it, answer \"not stated in the CV text "
+    "provided\" and treat the requirement as unmet."
 )
 
 
@@ -83,16 +92,90 @@ def retrieve(brief: str, k: int = 5) -> List[Dict]:
 HEADER_CHARS = 400
 
 
+def _sections_for(candidate_ids: List[str]) -> Dict[str, List[tuple]]:
+    """Every indexed section of each candidate's CV, in document order.
+
+    Retrieval hands the ranker one chunk per person -- the best-scoring one --
+    and that is the right unit for *finding* someone and the wrong unit for
+    *judging* them. A brief asking for ventilator experience matched a nurse on
+    her Professional Summary, which does not mention ventilators; the role three
+    chunks later says "Ventilator management". The model was shown the summary
+    alone, correctly reported that it did not see the skill, and phrased it as
+    "not stated in her CV". The only qualified candidate in the index was
+    described as unqualified, in the most authoritative-looking block on the
+    page, and nothing on screen contradicted it.
+
+    That is the inverse of the failure the system prompt was written to prevent.
+    It guards against claiming experience nobody has; a claimed *absence* is the
+    one that gets believed, because nobody thinks to check a negative.
+
+    So the ranker now sees the whole CV of everyone it ranks. One batched read
+    for the whole result set, not one per candidate. At k=5 this is a few
+    thousand extra tokens into a 200k window -- far cheaper than the outcome it
+    prevents.
+    """
+    if not candidate_ids:
+        return {}
+    try:
+        got = get_collection().get(
+            where={"candidate_id": {"$in": list(candidate_ids)}},
+            include=["documents", "metadatas"],
+        )
+    except Exception:
+        return {}
+
+    by_candidate: Dict[str, List[tuple]] = {}
+    for chunk_id, doc, meta in zip(got.get("ids") or [],
+                                   got.get("documents") or [],
+                                   got.get("metadatas") or []):
+        by_candidate.setdefault(meta.get("candidate_id", ""), []).append(
+            (chunk_id, meta.get("section", ""), doc))
+
+    # Order by the integer suffix of the chunk id. Sorting the id strings would
+    # put ":10" before ":2" and hand the model a shuffled CV.
+    def index_of(row):
+        tail = row[0].rsplit(":", 1)[-1]
+        return int(tail) if tail.isdigit() else 0
+
+    for rows in by_candidate.values():
+        rows.sort(key=index_of)
+    return by_candidate
+
+
+def _context_for(r: Dict, sections: Optional[List[tuple]] = None) -> str:
+    """One candidate's block for the ranking prompt.
+
+    The section retrieval actually matched on is marked, so the model can still
+    tell what the search fired on; the rest is there so it can check a claim
+    before making it.
+    """
+    block = f"[{r['candidate_id']}] {r['name']}"
+
+    if not sections:
+        # No batched read (an empty index, or the store errored). Fall back to
+        # the matched chunk alone rather than failing the ranking -- but say so,
+        # so the model does not read a partial CV as a complete one.
+        header = _header_for(r["candidate_id"], r["text"])
+        if header:
+            block += f"\n-- CV header --\n{header}"
+        block += "\n-- NOTE: only the best-matching section was available --"
+        return f"{block}\n-- {r['section']} --\n{r['text']}"
+
+    parts = [block, "-- full CV text, every section --"]
+    for _, section, text in sections:
+        marker = "  <-- the section this brief matched" if section == r["section"] else ""
+        parts.append(f"-- {section or 'Section'} --{marker}\n{text}")
+    return "\n".join(parts)
+
+
 def _header_for(candidate_id: str, best_text: str) -> str:
     """The candidate's contact block -- chunk 0 -- if it is not already the match.
 
-    Retrieval returns the single best-matching section, which for a technical
-    brief is usually the summary or a role. Location, nationality and visa status
-    live in the header, so without this the model is asked "is this person in the
-    Gulf?" while holding text that never says. It answered that once by guessing
-    from the candidate's name, which is not an acceptable failure mode in a
-    hiring tool. One extra lookup per candidate closes the gap at the source; the
-    system prompt closes it again as a backstop.
+    Only used by the degraded path in _context_for now that the ranker normally
+    receives every section. Kept because that path still needs location, visa
+    status and nationality, which live in the header: without them the model was
+    once asked "is this person in the Gulf?" while holding text that never said,
+    and answered by guessing from the candidate's name.
     """
     try:
         got = get_collection().get(ids=[f"{candidate_id}:0"], include=["documents"])
@@ -102,14 +185,6 @@ def _header_for(candidate_id: str, best_text: str) -> str:
     if not docs or not docs[0] or docs[0] == best_text:
         return ""
     return docs[0][:HEADER_CHARS]
-
-
-def _context_for(r: Dict) -> str:
-    block = f"[{r['candidate_id']}] {r['name']}"
-    header = _header_for(r["candidate_id"], r["text"])
-    if header:
-        block += f"\n-- CV header --\n{header}"
-    return f"{block}\n-- {r['section']} --\n{r['text']}"
 
 
 def rank(brief: str, results: List[Dict]) -> str:
@@ -129,7 +204,9 @@ def rank(brief: str, results: List[Dict]) -> str:
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise RuntimeError("ANTHROPIC_API_KEY is not set; retrieval works, ranking does not")
 
-    context = "\n\n".join(_context_for(r) for r in results)
+    sections = _sections_for([r["candidate_id"] for r in results])
+    context = "\n\n".join(
+        _context_for(r, sections.get(r["candidate_id"])) for r in results)
     msg = anthropic.Anthropic().messages.create(
         model=CLAUDE_MODEL,
         max_tokens=2000,

@@ -88,6 +88,28 @@ class Candidate(BaseModel):
 UI = Path(__file__).parent / "ui.html"
 
 
+def _is_synthetic() -> bool:
+    """Does this collection hold generated people rather than real ones?
+
+    Read from the rows, not from the collection name. The UI's "not real people"
+    banner used to key off /demo|test|sample/ against the name, so the local dev
+    corpus -- named "cvs" -- served forty invented candidates, complete with
+    phone numbers and visa status, wearing no warning. A config value is not a
+    safety mechanism.
+
+    Unknown counts as synthetic. A corpus indexed before this field existed
+    cannot prove it holds real people, and the harmless failure is a warning on
+    real data; the harmful one is invented people passed off as real.
+    """
+    try:
+        col = store.get_collection()
+        if col.count() == 0:
+            return False
+        return bool((col.get(where={"synthetic": True}, limit=1, include=[]) or {}).get("ids"))
+    except Exception:
+        return False
+
+
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def ui():
     """The search page.
@@ -119,6 +141,7 @@ def health():
     # exactly the confusion worth spending a field on.
     return {"status": "ok", "store": store.describe(), "chunks": count,
             "collection": store.COLLECTION,
+            "synthetic": _is_synthetic(),
             "model": store.CLAUDE_MODEL, "min_score": MIN_SCORE}
 
 
