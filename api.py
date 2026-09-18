@@ -97,9 +97,18 @@ def _is_synthetic() -> bool:
     phone numbers and visa status, wearing no warning. A config value is not a
     safety mechanism.
 
-    Unknown counts as synthetic. A corpus indexed before this field existed
-    cannot prove it holds real people, and the harmless failure is a warning on
-    real data; the harmful one is invented people passed off as real.
+    A row must say so. Unknown does NOT count as synthetic, and that direction is
+    chosen rather than inherited: the live index is fed by the CV pipeline, so
+    flagging real candidates as generated has its own cost -- a recruiter who
+    discounts a real person, or learns to ignore the banner because it cries
+    wolf. Every CV indexed from now on carries the field either way, since
+    index_cv writes False by default.
+
+    The gap that leaves is rows written before the field existed. They read as
+    real. If a generated corpus predates this change, reindex it -- for
+    corpus/synthetic that is one command and the flag is inferred:
+
+        CHROMA_COLLECTION=<name> .venv/bin/python indexer.py --corpus corpus/synthetic
     """
     try:
         col = store.get_collection()
