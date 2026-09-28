@@ -54,6 +54,9 @@ long the first request takes:
 
 ## Index and verify
 
+Fresh install only. On a box already serving real CVs, point this at the demo
+collection instead (`CHROMA_COLLECTION=cvs_demo`) — see "Going live" below.
+
 ```bash
 .venv/bin/python indexer.py --corpus corpus/synthetic
 .venv/bin/python eval/run_eval.py
@@ -175,20 +178,50 @@ FastAPI's generated `/docs` is still there for poking the JSON API directly.
 `-NoExplain` skips the Claude call: instant, free, and enough when you only want
 to know *who* matched rather than why.
 
-## Going live on real CVs
+## Going live on real CVs — already done on this VPS
 
-The index ships holding the 39-candidate synthetic demo corpus. Drop it before
-using this for real work, or your recruiter is searching a population that is
-mostly invented:
+> **Do not run `indexer.py --reset` on the live instance.** The `cvs` collection
+> behind port 5680 now holds real candidates, fed by the pipeline. `--reset`
+> empties it, and the only way back is re-dropping every original CV into the
+> Drive Inbox. For the same reason, never index `corpus/synthetic` into `cvs`:
+> invented people would sit beside real ones with nothing to tell them apart.
+> Synthetic data lives in `cvs_demo` — see the next section.
+
+For the record, going live was a one-time step on a fresh install, whose index
+starts out holding the synthetic corpus from "Index and verify" above:
 
 ```bash
 cd /root/cv-semantic-search
-.venv/bin/python indexer.py --reset          # empties the index and stops
-curl -s http://172.17.0.1:5680/health        # expect "chunks": 0
+.venv/bin/python indexer.py --reset          # fresh install only: empties the index
+curl -s http://172.17.0.1:5680/health        # expect "chunks": 0, "synthetic": false
 ```
 
 From then on the index fills by itself: every CV dropped into the Drive Inbox is
 extracted by the n8n pipeline and posted to `/index` on the way past.
+
+## The demo instance
+
+A second copy of the service, `cv-search-demo`, serves the synthetic corpus on
+port 5681 from its own collection, `cvs_demo`. Use it to show the system to
+anyone who should not see real candidates. Same code, same venv, same Chroma
+container; only `CHROMA_COLLECTION` and the port differ, set in
+`deploy/cv-search-demo.conf`, which also explains the design and how to remove it.
+
+```bash
+cp deploy/cv-search-demo.conf /etc/supervisor/conf.d/
+supervisorctl reread && supervisorctl update
+CHROMA_COLLECTION=cvs_demo .venv/bin/python indexer.py --corpus corpus/synthetic
+curl -s http://172.17.0.1:5681/health        # expect "collection": "cvs_demo", "synthetic": true
+```
+
+```powershell
+.\deploy\cvsearch.ps1 -Ui -Port 5681         # the demo page, over the tunnel
+```
+
+It is deliberately missing from the ufw docker0 rule — n8n has no reason to post
+CVs to it — and it costs about 300 MB, since each process loads its own copy of
+the ONNX model. The page shows a "Demo data. These candidates are generated, not
+real people." banner whenever `/health` reports `"synthetic": true`.
 
 ## Checking it is keeping up
 

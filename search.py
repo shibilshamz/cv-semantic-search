@@ -2,9 +2,11 @@
 
 Two stages, and it matters that they are separate:
 
-  retrieve()  cheap, deterministic, no model call. Narrows 200 chunks to 5
-              candidates by vector distance.
-  rank()      one Claude call over those 5. Never sees the other 195.
+  retrieve()  cheap, deterministic, no model call. Narrows the index (194
+              chunks, 39 people on the demo corpus) to 5 candidates by vector
+              distance, one best chunk each.
+  rank()      one Claude call over those 5, reading every section of their
+              CVs (see _sections_for). Nobody outside the 5 reaches the model.
 
 That split is the point of retrieval-augmented generation. Sending 500 CVs to a
 model per query would be slow and expensive; sending 5 costs a fraction of a

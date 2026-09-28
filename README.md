@@ -33,8 +33,11 @@ RETRIEVE + GENERATE — per query                            │
                             (k × 4)          by candidate
                                                   │
                                                   ▼
-                                        top 5 ──▶ Claude Haiku ──▶ ranked
-                                                  ranks + cites      answer
+                                            top 5 people
+                                                  │  read back every section
+                                                  ▼  of those 5 CVs
+                                            Claude Haiku ──▶ ranked answer
+                                            ranks + cites
 ```
 
 The over-fetch-then-collapse step is the part that matters. Chunking is
@@ -43,7 +46,15 @@ ten slots with five different sections of their own CV. Retrieval pulls `k × 4`
 chunks, keeps each person's single best-scoring one, and returns a list of
 *people* rather than a list of passages.
 
-The model never sees the other 189 chunks. That is the whole economy of the
+Retrieval *finds* people on their best chunk; the ranker *judges* them on their
+whole CV. Once the five are chosen, every section of those five CVs is read back
+in document order and handed to Claude, with the section that matched marked. A
+single chunk is the right unit for finding someone and the wrong unit for deciding
+about them: shown only a nurse's summary, the model once reported ventilator
+experience as missing when her CV states it three sections later.
+
+Everyone outside the five never reaches the model. On the demo corpus that is 34
+of 39 candidates and most of the 194 chunks. That is the whole economy of the
 thing: ranking 5 candidates costs a fraction of a cent, ranking 500 CVs would not
 be worth doing.
 
@@ -123,7 +134,7 @@ uvicorn api:app --host 127.0.0.1 --port 5680
 ```
 
 For the API, the VPS deployment, and day-to-day use (the UI over an SSH tunnel,
-one-command searches, clearing the demo corpus before going live), see
+one-command searches, the separate demo instance), see
 [deploy/DEPLOY.md](deploy/DEPLOY.md).
 
 ```bash
@@ -144,16 +155,17 @@ curl -X POST localhost:5680/search -H 'content-type: application/json' \
 
 ## Grounding
 
-The ranking prompt is constrained to the retrieved excerpts:
+The ranking prompt (`SYSTEM` in `search.py`) has three rules, each added for a
+failure that actually happened:
 
-> Use ONLY the excerpts provided. Cite the `[candidate_id]` behind every claim.
-> If an excerpt does not support a requirement, say so explicitly. Never infer
-> experience that is not written down.
+| Rule | Why it is there |
+|---|---|
+| Use **only** the CV text provided, cite the `[candidate_id]` behind every claim, never infer experience that is not written down, and say plainly when nobody fits | Without it the model fills gaps from its own priors and describes experience the candidate does not have — confidently, in fluent prose, attributed to a real person about to be put in front of a client |
+| Before calling a requirement **missing**, read every section of that CV; say it as *"not stated in the CV text provided"*, and if any section mentions it, quote the words | A claimed *absence* is the claim nobody double-checks. When the ranker saw one section per person, it described the only qualified nurse in the index as lacking ventilator experience her CV states outright |
+| Never infer **nationality, location, ethnicity, gender, age or religion** from a name; an unstated location or work authorisation is unmet, not guessed | An early run answered "is this person in the Gulf?" with "name and context suggest Gulf region". In a hiring tool that is both a grounding failure and a discrimination risk |
 
-Without that instruction the model fills gaps from its own priors and describes
-experience the candidate does not have — confidently, in fluent prose, attributed
-to a real person about to be put in front of a client. Everything else in
-`search.py` is plumbing; that paragraph is what makes the output safe to act on.
+Everything else in `search.py` is plumbing; those rules are what make the output
+safe to act on.
 
 The `weak` flag in the response is the same idea in a field you can branch on:
 when the best match scores below the calibrated threshold, the caller is told so
@@ -169,6 +181,14 @@ Runs on the same Ubuntu VPS as the pipeline that feeds it.
 |---|---|---|---|
 | Chroma | 8001 | `127.0.0.1` | 8000 is taken by another service on this box. Only the API talks to it. |
 | cv-search API | 5680 | `172.17.0.1` | The docker0 bridge address — listens on the bridge only, never on the public interface |
+| cv-search-demo | 5681 | `172.17.0.1` | Same code on the synthetic corpus (`cvs_demo` collection) — for showing the system without showing real people |
+
+The demo is a **second process**, not a collection parameter on the live one: a
+request field is all that would stand between a demo query and real CVs, while a
+process with its collection fixed in its own environment cannot be pointed at the
+wrong data by anything a caller sends. Either way, `/health` reports
+`"synthetic": true` when the index holds generated people, and the search page
+then labels every result as not a real person.
 
 Binding the API to the bridge rather than `0.0.0.0` is deliberate. A service on
 `0.0.0.0` listens on every interface including the public one, which leaves the
